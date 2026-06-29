@@ -225,6 +225,19 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void CopyCurrentPath()
+    {
+        var entry = GetCurrentFolderEntry();
+        if (entry is null)
+        {
+            GlobalStatus = "Bu konumun yolu kopyalanamıyor.";
+            return;
+        }
+
+        CopyPath(entry);
+    }
+
+    [RelayCommand]
     private async Task NavigateAddressAsync()
     {
         if (ActiveTab is null)

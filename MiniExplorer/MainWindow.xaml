@@ -161,7 +161,8 @@
                     <Button Content="←" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                     <Button Content="→" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
                     <Button Content="↑" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Content="↻" Width="32" Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yenile (F5)"/>
+                    <Button Content="↻" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yenile (F5)"/>
+                    <Button Content="⧉" Width="32" Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yolu kopyala"/>
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}"
