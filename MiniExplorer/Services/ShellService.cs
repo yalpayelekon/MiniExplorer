@@ -178,16 +178,57 @@ public sealed class ShellService
             return apps;
         }
 
+        CollectOpenWithListApps(extension, apps);
+        CollectUserChoiceApps(extension, apps);
+
+        return apps
+            .GroupBy(a => a.ExecutablePath, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static void CollectOpenWithListApps(string extension, List<AssociatedApp> apps)
+    {
         using var openWithList = Registry.ClassesRoot.OpenSubKey($@"{extension}\OpenWithList");
         if (openWithList is null)
         {
-            return apps;
+            return;
         }
 
-        foreach (var subKeyName in openWithList.GetSubKeyNames())
+        foreach (var appKeyName in openWithList.GetSubKeyNames())
         {
-            using var appKey = openWithList.OpenSubKey(subKeyName);
-            var command = appKey?.GetValue(null) as string;
+            var executable = ResolveApplicationExecutable(appKeyName);
+            if (string.IsNullOrWhiteSpace(executable))
+            {
+                continue;
+            }
+
+            apps.Add(new AssociatedApp
+            {
+                Name = Path.GetFileNameWithoutExtension(appKeyName),
+                ExecutablePath = executable
+            });
+        }
+    }
+
+    private static void CollectUserChoiceApps(string extension, List<AssociatedApp> apps)
+    {
+        using var openWithProgIds = Registry.ClassesRoot.OpenSubKey($@"{extension}\OpenWithProgids");
+        if (openWithProgIds is null)
+        {
+            return;
+        }
+
+        foreach (var progId in openWithProgIds.GetValueNames())
+        {
+            if (progId.StartsWith("AppX", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            using var commandKey = Registry.ClassesRoot.OpenSubKey($@"{progId}\shell\open\command");
+            var command = commandKey?.GetValue(null) as string;
             if (string.IsNullOrWhiteSpace(command))
             {
                 continue;
@@ -201,16 +242,45 @@ public sealed class ShellService
 
             apps.Add(new AssociatedApp
             {
-                Name = subKeyName,
+                Name = progId,
                 ExecutablePath = executable
             });
         }
+    }
 
-        return apps
-            .GroupBy(a => a.ExecutablePath, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First())
-            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+    private static string? ResolveApplicationExecutable(string appKeyName)
+    {
+        if (File.Exists(appKeyName))
+        {
+            return appKeyName;
+        }
+
+        using var appCommandKey = Registry.ClassesRoot.OpenSubKey($@"Applications\{appKeyName}\shell\open\command");
+        var appCommand = appCommandKey?.GetValue(null) as string;
+        if (!string.IsNullOrWhiteSpace(appCommand))
+        {
+            var executable = ExtractExecutable(appCommand);
+            if (!string.IsNullOrWhiteSpace(executable) && File.Exists(executable))
+            {
+                return executable;
+            }
+        }
+
+        foreach (var root in new[] { Registry.LocalMachine, Registry.CurrentUser })
+        {
+            using var appPathsKey = root.OpenSubKey($@"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\{appKeyName}");
+            var appPath = appPathsKey?.GetValue(null) as string;
+            if (!string.IsNullOrWhiteSpace(appPath))
+            {
+                var executable = ExtractExecutable(appPath);
+                if (!string.IsNullOrWhiteSpace(executable) && File.Exists(executable))
+                {
+                    return executable;
+                }
+            }
+        }
+
+        return null;
     }
 
     public void CopyPath(string path) => Clipboard.SetText($"\"{path}\"");

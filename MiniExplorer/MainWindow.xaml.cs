@@ -310,7 +310,7 @@ public partial class MainWindow : Window
             menu.Items.Add(CreateMenuItem("Kopyala", () => ViewModel.CopySelectionCommand.Execute(null)));
         }
 
-        menu.Items.Add(CreateMenuItem("Yapıştır", () => ViewModel.PasteCommand.Execute(null)));
+        menu.Items.Add(CreateMenuItem("Yapıştır", () => ViewModel.PasteCommand.Execute(folder.FullPath)));
 
         if (!isBackground)
         {

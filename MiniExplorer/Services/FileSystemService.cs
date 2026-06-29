@@ -107,9 +107,11 @@ public sealed class FileSystemService
 
     public void Rename(string path, string newName)
     {
+        ValidateItemName(newName);
+
         var parent = Path.GetDirectoryName(path)
             ?? throw new InvalidOperationException("Geçersiz yol.");
-        var destination = Path.Combine(parent, newName);
+        var destination = Path.Combine(parent, newName.Trim());
 
         if (Directory.Exists(path))
         {
@@ -122,14 +124,31 @@ public sealed class FileSystemService
 
     public void CopyItems(IEnumerable<string> sourcePaths, string destinationDirectory, bool move)
     {
+        var normalizedDestinationDirectory = Path.GetFullPath(destinationDirectory);
+
         foreach (var sourcePath in sourcePaths)
         {
             var name = Path.GetFileName(sourcePath)
                 ?? throw new InvalidOperationException("Geçersiz kaynak yolu.");
+            var normalizedSourcePath = Path.GetFullPath(sourcePath);
+            var directDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, name));
+
+            if (move && string.Equals(normalizedSourcePath, directDestinationPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             var destinationPath = GetUniqueDestinationPath(destinationDirectory, name);
+            var normalizedDestinationPath = Path.GetFullPath(destinationPath);
 
             if (Directory.Exists(sourcePath))
             {
+                if (IsInsideDirectory(normalizedSourcePath, normalizedDestinationDirectory) ||
+                    IsInsideDirectory(normalizedDestinationPath, normalizedSourcePath))
+                {
+                    throw new InvalidOperationException("Klasör kendi içine veya alt klasörüne taşınamaz.");
+                }
+
                 CopyDirectory(sourcePath, destinationPath);
                 if (move)
                 {
@@ -214,6 +233,43 @@ public sealed class FileSystemService
 
             counter++;
         }
+    }
+
+    private static void ValidateItemName(string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName))
+        {
+            throw new InvalidOperationException("Geçersiz ad.");
+        }
+
+        var trimmed = newName.Trim();
+        if (trimmed is "." or "..")
+        {
+            throw new InvalidOperationException("Bu ad kullanılamaz.");
+        }
+
+        if (Path.IsPathRooted(trimmed) ||
+            trimmed.Contains(Path.DirectorySeparatorChar) ||
+            trimmed.Contains(Path.AltDirectorySeparatorChar))
+        {
+            throw new InvalidOperationException("Ad yol içeremez.");
+        }
+
+        if (trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+        {
+            throw new InvalidOperationException("Ad geçersiz karakter içeriyor.");
+        }
+    }
+
+    private static bool IsInsideDirectory(string candidatePath, string directoryPath)
+    {
+        if (!directoryPath.EndsWith(Path.DirectorySeparatorChar))
+        {
+            directoryPath += Path.DirectorySeparatorChar;
+        }
+
+        return candidatePath.StartsWith(directoryPath, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(candidatePath.TrimEnd(Path.DirectorySeparatorChar), directoryPath.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
     }
 
     private static void CopyDirectory(string sourceDir, string destinationDir)

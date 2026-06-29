@@ -39,12 +39,21 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _globalStatus = "Hazır";
 
+    private TabViewModel? _subscribedTab;
+
     partial void OnActiveTabChanged(TabViewModel? value)
     {
+        if (_subscribedTab is not null)
+        {
+            _subscribedTab.PropertyChanged -= Tab_PropertyChanged;
+            _subscribedTab = null;
+        }
+
         if (value is not null)
         {
             GlobalStatus = value.SelectionStatus;
             value.PropertyChanged += Tab_PropertyChanged;
+            _subscribedTab = value;
             SaveSession();
         }
     }
@@ -306,16 +315,15 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task PasteAsync()
+    private async Task PasteAsync(string? destinationDirectory = null)
     {
         if (ActiveTab is null || !_clipboardService.HasContent)
         {
             return;
         }
 
-        var destination = ActiveTab.CurrentPath == PathConstants.ThisPc
-            ? null
-            : ActiveTab.CurrentPath;
+        var destination = destinationDirectory
+            ?? (ActiveTab.CurrentPath == PathConstants.ThisPc ? null : ActiveTab.CurrentPath);
 
         if (destination is null || !Directory.Exists(destination))
         {
@@ -326,7 +334,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             var move = _clipboardService.Operation == ClipboardOperation.Cut;
-            _fileSystemService.CopyItems(_clipboardService.Paths, destination!, move);
+            _fileSystemService.CopyItems(_clipboardService.Paths, destination, move);
             if (move)
             {
                 _clipboardService.Clear();
