@@ -31,6 +31,15 @@ public sealed class ShellService
             @"Microsoft VS Code\Code.exe")
     ];
 
+    private static readonly string[] NotepadPlusPlusCandidatePaths =
+    [
+        "notepad++.exe",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"Notepad++\notepad++.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Notepad++\notepad++.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            @"Programs\Notepad++\notepad++.exe")
+    ];
+
     public ImageSource GetIcon(string path, bool isDirectory)
     {
         var cacheKey = $"{path}|{isDirectory}";
@@ -93,6 +102,32 @@ public sealed class ShellService
         throw new InvalidOperationException("Terminal uygulaması bulunamadı.");
     }
 
+    public void OpenInExplorer(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+            return;
+        }
+
+        if (File.Exists(path))
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{path}\"",
+                UseShellExecute = true
+            });
+            return;
+        }
+
+        throw new InvalidOperationException("Konum bulunamadı.");
+    }
+
     public void OpenWithCode(string path)
     {
         foreach (var candidate in CodeCandidatePaths)
@@ -128,6 +163,43 @@ public sealed class ShellService
         }
 
         throw new InvalidOperationException("VS Code veya Cursor bulunamadı.");
+    }
+
+    public void OpenWithNotepadPlusPlus(string path)
+    {
+        foreach (var candidate in NotepadPlusPlusCandidatePaths)
+        {
+            try
+            {
+                if (candidate is "notepad++.exe")
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = candidate,
+                        Arguments = $"\"{path}\"",
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+
+                if (File.Exists(candidate))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = candidate,
+                        Arguments = $"\"{path}\"",
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+            }
+            catch
+            {
+                // Try next candidate.
+            }
+        }
+
+        throw new InvalidOperationException("Notepad++ bulunamadı.");
     }
 
     public void RunAsAdmin(string path)

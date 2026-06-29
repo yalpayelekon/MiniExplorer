@@ -238,6 +238,27 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenCurrentPathInExplorer()
+    {
+        var entry = GetCurrentFolderEntry();
+        if (entry is null)
+        {
+            GlobalStatus = "Bu konum Explorer'da açılamıyor.";
+            return;
+        }
+
+        try
+        {
+            _shellService.OpenInExplorer(entry.FullPath);
+            GlobalStatus = "Explorer'da açıldı.";
+        }
+        catch (Exception ex)
+        {
+            GlobalStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
     private async Task NavigateAddressAsync()
     {
         if (ActiveTab is null)
@@ -278,6 +299,11 @@ public partial class MainViewModel : ObservableObject
             {
                 await ActiveTab.NavigateToAsync(entry.FullPath);
                 UpdateActiveTabStatus(saveSession: true);
+            }
+            else if (FilePathHelper.IsExtensionlessFile(entry.FullPath))
+            {
+                _shellService.OpenWithNotepadPlusPlus(entry.FullPath);
+                UpdateActiveTabStatus();
             }
             else
             {
@@ -508,6 +534,25 @@ public partial class MainViewModel : ObservableObject
             GlobalStatus = folders.Count == 1
                 ? "VS Code ile açıldı."
                 : $"{folders.Count} klasör VS Code ile açıldı.";
+        }
+        catch (Exception ex)
+        {
+            GlobalStatus = ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void OpenWithNotepadPlusPlus(FileSystemEntry? entry)
+    {
+        if (entry is null || entry.IsDirectory)
+        {
+            return;
+        }
+
+        try
+        {
+            _shellService.OpenWithNotepadPlusPlus(entry.FullPath);
+            GlobalStatus = "Notepad++ ile açıldı.";
         }
         catch (Exception ex)
         {

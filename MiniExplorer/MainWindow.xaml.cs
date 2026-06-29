@@ -415,7 +415,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var menu = new ContextMenu();
+        var menu = CreateContextMenu();
         menu.Items.Add(CreateMenuItem("Aç", () => ViewModel.NavigateSidebarCommand.Execute(item)));
 
         if (item.IsPinned)
@@ -428,7 +428,7 @@ public partial class MainWindow : Window
 
     private ContextMenu BuildFolderContextMenu(FileSystemEntry folder, bool isBackground)
     {
-        var menu = new ContextMenu();
+        var menu = CreateContextMenu();
 
         if (!isBackground)
         {
@@ -468,13 +468,19 @@ public partial class MainWindow : Window
 
     private ContextMenu BuildFileContextMenu(IReadOnlyList<FileSystemEntry> selected)
     {
-        var menu = new ContextMenu();
+        var menu = CreateContextMenu();
         var single = selected.Count == 1 ? selected[0] : null;
         var folders = selected.Where(s => s.IsDirectory).ToList();
 
         if (single is not null)
         {
             menu.Items.Add(CreateMenuItem("Aç", () => ViewModel.OpenItemCommand.Execute(single)));
+
+            if (!single.IsDirectory && FilePathHelper.IsExtensionlessFile(single.FullPath))
+            {
+                menu.Items.Add(CreateMenuItem("Notepad++ ile düzenle",
+                    () => ViewModel.OpenWithNotepadPlusPlusCommand.Execute(single)));
+            }
 
             if (single.IsDirectory)
             {
@@ -534,9 +540,19 @@ public partial class MainWindow : Window
         return menu;
     }
 
+    private static ContextMenu CreateContextMenu() =>
+        new()
+        {
+            Style = (Style)Application.Current.FindResource(typeof(ContextMenu))
+        };
+
     private static MenuItem CreateMenuItem(string header, Action action)
     {
-        var item = new MenuItem { Header = header };
+        var item = new MenuItem
+        {
+            Header = header,
+            Style = (Style)Application.Current.FindResource(typeof(MenuItem))
+        };
         item.Click += (_, _) => action();
         return item;
     }

@@ -24,6 +24,21 @@
                 </DataTrigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Margin" Value="0,0,5,0"/>
+        </Style>
+
+        <Style x:Key="ToolbarTextBoxStyle" TargetType="TextBox">
+            <Setter Property="MinHeight" Value="38"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -150,25 +165,32 @@
                 Background="{StaticResource Brush.Surface}"
                 BorderBrush="{StaticResource Brush.Border}"
                 BorderThickness="0,0,0,1"
-                Padding="8,6">
+                Padding="10,7">
             <Grid DataContext="{Binding ActiveTab}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="264"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" Margin="0,0,8,0">
-                    <Button Content="←" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Content="→" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Content="↑" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.GoUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Content="↻" Width="32" Margin="0,0,4,0" Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yenile (F5)"/>
-                    <Button Content="⧉" Width="32" Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yolu kopyala"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="←" Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="→" Command="{Binding DataContext.GoForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="↑" Command="{Binding DataContext.GoUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="↻" Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yenile (F5)"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="⧉" Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yolu kopyala"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            FontFamily="Segoe MDL2 Assets"
+                            Content="&#xE838;"
+                            Command="{Binding DataContext.OpenCurrentPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="Explorer'da aç"/>
                 </StackPanel>
                 <TextBox Grid.Column="1"
+                         Style="{StaticResource ToolbarTextBoxStyle}"
                          Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}"
                          KeyDown="AddressBox_KeyDown"/>
                 <TextBox Grid.Column="2"
-                         Margin="8,0,0,0"
+                         Style="{StaticResource ToolbarTextBoxStyle}"
+                         Margin="10,0,0,0"
                          Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Mevcut klasörde filtrele"/>
             </Grid>
