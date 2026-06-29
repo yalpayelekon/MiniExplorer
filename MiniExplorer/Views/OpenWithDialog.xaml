@@ -1,0 +1,25 @@
+<Window x:Class="MiniExplorer.Views.OpenWithDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Height="360"
+        Width="480"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource Brush.Background}">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <ListBox x:Name="AppsList"
+                 DisplayMemberPath="Name"
+                 MouseDoubleClick="Open_Click"/>
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    Margin="0,12,0,0">
+            <Button Content="Aç" Width="90" Margin="0,0,8,0" Click="Open_Click"/>
+            <Button Content="Başka uygulama..." Width="130" Margin="0,0,8,0" Click="ChooseOther_Click"/>
+            <Button Content="İptal" Width="90" IsCancel="True" Click="Cancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
