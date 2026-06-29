@@ -1,8 +1,10 @@
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Windows.Media;
 
 namespace MiniExplorer.Models;
 
-public sealed class FileSystemEntry
+public sealed class FileSystemEntry : INotifyPropertyChanged
 {
     public required string FullPath { get; init; }
     public required string Name { get; init; }
@@ -11,6 +13,25 @@ public sealed class FileSystemEntry
     public DateTime? Modified { get; init; }
     public string Extension { get; init; } = string.Empty;
     public ImageSource? Icon { get; set; }
+
+    private ImageSource? _thumbnail;
+    public ImageSource? Thumbnail
+    {
+        get => _thumbnail;
+        set
+        {
+            if (!ReferenceEquals(_thumbnail, value))
+            {
+                _thumbnail = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     public string TypeDisplay => IsDirectory
         ? "Dosya klasörü"

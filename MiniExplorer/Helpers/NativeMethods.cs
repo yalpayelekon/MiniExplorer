@@ -10,6 +10,12 @@ internal static class NativeMethods
     public const uint FILE_ATTRIBUTE_DIRECTORY = 0x10;
     public const uint FILE_ATTRIBUTE_NORMAL = 0x80;
 
+    public const int SIIGBF_RESIZETOFIT = 0;
+    public const int SIIGBF_BIGGERSIZEOK = 0x1;
+    public const int SIIGBF_THUMBNAILONLY = 0x8;
+
+    public static readonly Guid ShellItemImageFactoryGuid = new("bcc18b79-ba16-442f-80c4-8a59c30c8bd1");
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     public static extern IntPtr SHGetFileInfo(
         string pszPath,
@@ -17,6 +23,19 @@ internal static class NativeMethods
         ref SHFILEINFO psfi,
         uint cbFileInfo,
         uint uFlags);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
+    public static extern int SHCreateItemFromParsingName(
+        string pszPath,
+        IntPtr pbc,
+        [MarshalAs(UnmanagedType.LPStruct)] Guid riid,
+        out IShellItemImageFactory ppv);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteObject(IntPtr hObject);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     public struct SHFILEINFO
@@ -30,6 +49,19 @@ internal static class NativeMethods
         public string szDisplayName;
     }
 
-    [DllImport("user32.dll", SetLastError = true)]
-    public static extern bool DestroyIcon(IntPtr hIcon);
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SIZE
+    {
+        public int cx;
+        public int cy;
+    }
+
+    [ComImport]
+    [Guid("bcc18b79-ba16-442f-80c4-8a59c30c8bd1")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IShellItemImageFactory
+    {
+        [PreserveSig]
+        int GetImage(SIZE size, int flags, out IntPtr phbm);
+    }
 }

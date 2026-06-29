@@ -14,7 +14,14 @@
         <SolidColorBrush x:Key="Brush.ForegroundMuted" Color="#9DA5B4"/>
         <SolidColorBrush x:Key="Brush.Selection" Color="#37373D"/>
         <SolidColorBrush x:Key="Brush.Hover" Color="#2A2D2E"/>
-        <SolidColorBrush x:Key="Brush.Accent" Color="#0078D4"/>
+        <SolidColorBrush x:Key="Brush.Accent" Color="#2196F3"/>
+        <SolidColorBrush x:Key="Brush.TabBar" Color="#1A2332"/>
+        <SolidColorBrush x:Key="Brush.TabInactive" Color="#243548"/>
+        <SolidColorBrush x:Key="Brush.TabInactiveBorder" Color="#3A5570"/>
+        <SolidColorBrush x:Key="Brush.TabActive" Color="#1B5A8C"/>
+        <SolidColorBrush x:Key="Brush.TabAccent" Color="#5BC0EB"/>
+        <SolidColorBrush x:Key="Brush.TabInactiveForeground" Color="#9DD4F5"/>
+        <SolidColorBrush x:Key="Brush.TabActiveForeground" Color="#E8F6FF"/>
 
         <Style TargetType="Window">
             <Setter Property="Background" Value="{StaticResource Brush.Background}"/>

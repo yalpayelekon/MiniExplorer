@@ -48,7 +48,7 @@ public partial class MainWindow : Window
             switch (e.Key)
             {
                 case Key.A:
-                    FileList.SelectAll();
+                    SelectAllInActiveLists();
                     e.Handled = true;
                     break;
                 case Key.X:
@@ -88,6 +88,19 @@ public partial class MainWindow : Window
         }
     }
 
+    private void SelectAllInActiveLists()
+    {
+        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
+        {
+            FolderAndFileList.SelectAll();
+            ThumbnailList.SelectAll();
+            UpdateCombinedSelection();
+            return;
+        }
+
+        FileList.SelectAll();
+    }
+
     private void TabHeader_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is FrameworkElement { Tag: TabViewModel tab })
@@ -112,7 +125,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (GetListViewItemUnderMouse(FileList, e.GetPosition(FileList)) is not null)
+        if (IsClickOnAnyListItem(e))
         {
             return;
         }
@@ -122,6 +135,21 @@ public partial class MainWindow : Window
         {
             ClearFileSelection();
         }
+    }
+
+    private bool IsClickOnAnyListItem(MouseButtonEventArgs e)
+    {
+        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
+        {
+            if (GetListViewItemUnderMouse(FolderAndFileList, e.GetPosition(FolderAndFileList)) is not null)
+            {
+                return true;
+            }
+
+            return GetListViewItemUnderMouse(ThumbnailList, e.GetPosition(ThumbnailList)) is not null;
+        }
+
+        return GetListViewItemUnderMouse(FileList, e.GetPosition(FileList)) is not null;
     }
 
     private void FileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -135,29 +163,104 @@ public partial class MainWindow : Window
         ViewModel.OnSelectionChanged(selected);
     }
 
+    private void FolderAndFileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingSelection)
+        {
+            return;
+        }
+
+        UpdateCombinedSelection();
+    }
+
+    private void ThumbnailList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingSelection)
+        {
+            return;
+        }
+
+        UpdateCombinedSelection();
+    }
+
+    private void UpdateCombinedSelection()
+    {
+        var selected = FolderAndFileList.SelectedItems.Cast<FileSystemEntry>()
+            .Concat(ThumbnailList.SelectedItems.Cast<FileSystemEntry>())
+            .ToList();
+        ViewModel.OnSelectionChanged(selected);
+    }
+
     private void FileList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (FileList.SelectedItems.Count == 1 && FileList.SelectedItem is FileSystemEntry entry)
+        if (sender is ListView { SelectedItem: FileSystemEntry entry })
         {
             ViewModel.OpenItemCommand.Execute(entry);
         }
     }
 
-    private void FileList_MouseDown(object sender, MouseButtonEventArgs e)
+    private void FileList_MouseDown(object sender, MouseButtonEventArgs e) =>
+        HandleListMouseDown(FileList, e, clearOtherOnSelect: false);
+
+    private void FolderAndFileList_MouseDown(object sender, MouseButtonEventArgs e) =>
+        HandleListMouseDown(FolderAndFileList, e, clearOtherOnSelect: true, otherList: ThumbnailList);
+
+    private void ThumbnailList_MouseDown(object sender, MouseButtonEventArgs e) =>
+        HandleListMouseDown(ThumbnailList, e, clearOtherOnSelect: true, otherList: FolderAndFileList);
+
+    private void PicturesChildList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
-        var itemUnderMouse = GetListViewItemUnderMouse(FileList, e.GetPosition(FileList));
+        if (sender is not ListView listView)
+        {
+            return;
+        }
+
+        if (listView == ThumbnailList)
+        {
+            e.Handled = true;
+            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
+            return;
+        }
+
+        if (listView != FolderAndFileList || FolderAndFileList.MaxHeight == double.PositiveInfinity)
+        {
+            return;
+        }
+
+        var innerScrollViewer = FindVisualChild<ScrollViewer>(FolderAndFileList);
+        if (innerScrollViewer is null)
+        {
+            return;
+        }
+
+        var nextOffset = innerScrollViewer.VerticalOffset - e.Delta;
+        if (nextOffset < 0)
+        {
+            e.Handled = true;
+            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
+        }
+        else if (nextOffset > innerScrollViewer.ScrollableHeight)
+        {
+            e.Handled = true;
+            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
+        }
+    }
+
+    private void HandleListMouseDown(ListView listView, MouseButtonEventArgs e, bool clearOtherOnSelect, ListView? otherList = null)
+    {
+        var itemUnderMouse = GetListViewItemUnderMouse(listView, e.GetPosition(listView));
 
         if (e.ChangedButton == MouseButton.Right)
         {
             if (itemUnderMouse?.Content is FileSystemEntry rightClickEntry)
             {
-                var alreadySelected = FileList.SelectedItems.Cast<FileSystemEntry>()
-                    .Any(i => string.Equals(i.FullPath, rightClickEntry.FullPath, StringComparison.OrdinalIgnoreCase));
+                var alreadySelected = GetAllSelectedEntries().Any(i =>
+                    string.Equals(i.FullPath, rightClickEntry.FullPath, StringComparison.OrdinalIgnoreCase));
 
                 if (!alreadySelected)
                 {
                     _syncingSelection = true;
-                    FileList.SelectedItems.Clear();
+                    ClearAllListSelections();
                     itemUnderMouse.IsSelected = true;
                     _syncingSelection = false;
                     ViewModel.OnSelectionChanged([rightClickEntry]);
@@ -179,6 +282,20 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (e.ChangedButton == MouseButton.Left &&
+            clearOtherOnSelect &&
+            otherList is not null &&
+            itemUnderMouse is not null &&
+            Keyboard.Modifiers == ModifierKeys.None)
+        {
+            if (otherList.SelectedItems.Count > 0)
+            {
+                _syncingSelection = true;
+                otherList.SelectedItems.Clear();
+                _syncingSelection = false;
+            }
+        }
+
         if (e.ChangedButton == MouseButton.Middle &&
             itemUnderMouse?.Content is FileSystemEntry entry &&
             entry.IsDirectory)
@@ -188,15 +305,35 @@ public partial class MainWindow : Window
         }
     }
 
+    private IEnumerable<FileSystemEntry> GetAllSelectedEntries()
+    {
+        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
+        {
+            return FolderAndFileList.SelectedItems.Cast<FileSystemEntry>()
+                .Concat(ThumbnailList.SelectedItems.Cast<FileSystemEntry>());
+        }
+
+        return FileList.SelectedItems.Cast<FileSystemEntry>();
+    }
+
+    private void ClearAllListSelections()
+    {
+        FileList.SelectedItems.Clear();
+        FolderAndFileList.SelectedItems.Clear();
+        ThumbnailList.SelectedItems.Clear();
+    }
+
     private void ClearFileSelection()
     {
-        if (FileList.SelectedItems.Count == 0)
+        if (FileList.SelectedItems.Count == 0 &&
+            FolderAndFileList.SelectedItems.Count == 0 &&
+            ThumbnailList.SelectedItems.Count == 0)
         {
             return;
         }
 
         _syncingSelection = true;
-        FileList.SelectedItems.Clear();
+        ClearAllListSelections();
         _syncingSelection = false;
         ViewModel.OnSelectionChanged([]);
     }
@@ -245,7 +382,9 @@ public partial class MainWindow : Window
 
     private void FileList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
-        var selected = FileList.SelectedItems.Cast<FileSystemEntry>().ToList();
+        var selected = GetAllSelectedEntries().ToList();
+        var targetList = sender as ListView ?? FileList;
+
         if (selected.Count == 0)
         {
             var currentFolder = ViewModel.GetCurrentFolderEntry();
@@ -255,17 +394,17 @@ public partial class MainWindow : Window
                 return;
             }
 
-            FileList.ContextMenu = BuildFolderContextMenu(currentFolder, isBackground: true);
+            targetList.ContextMenu = BuildFolderContextMenu(currentFolder, isBackground: true);
             return;
         }
 
         if (selected.Count == 1 && selected[0].IsDirectory)
         {
-            FileList.ContextMenu = BuildFolderContextMenu(selected[0], isBackground: false);
+            targetList.ContextMenu = BuildFolderContextMenu(selected[0], isBackground: false);
             return;
         }
 
-        FileList.ContextMenu = BuildFileContextMenu(selected);
+        targetList.ContextMenu = BuildFileContextMenu(selected);
     }
 
     private void Sidebar_ContextMenuOpening(object sender, ContextMenuEventArgs e)
@@ -440,5 +579,25 @@ public partial class MainWindow : Window
         }
 
         return element as ListViewItem;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var descendant = FindVisualChild<T>(child);
+            if (descendant is not null)
+            {
+                return descendant;
+            }
+        }
+
+        return null;
     }
 }

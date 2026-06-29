@@ -30,6 +30,10 @@ public partial class SidebarViewModel : ObservableObject
         Items.Add(new SidebarItem { Label = "Masaüstü", Path = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory) });
         Items.Add(new SidebarItem { Label = "İndirilenler", Path = KnownFolders.Downloads });
         Items.Add(new SidebarItem { Label = "Belgeler", Path = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) });
+        if (PicturesPathHelper.PicturesRoot is { } picturesPath)
+        {
+            Items.Add(new SidebarItem { Label = "Resimler", Path = picturesPath });
+        }
         Items.Add(new SidebarItem { Label = "Hızlı erişim", Path = string.Empty, IsSectionHeader = true });
 
         foreach (var path in _quickAccessService.GetPinnedPaths())

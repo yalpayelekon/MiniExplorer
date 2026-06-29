@@ -107,11 +107,19 @@ public sealed class FileSystemService
 
     public void Rename(string path, string newName)
     {
-        ValidateItemName(newName);
+        var trimmedName = newName.Trim();
+        ValidateItemName(trimmedName);
 
         var parent = Path.GetDirectoryName(path)
             ?? throw new InvalidOperationException("Geçersiz yol.");
-        var destination = Path.Combine(parent, newName.Trim());
+        var destination = Path.GetFullPath(Path.Combine(parent, trimmedName));
+        var normalizedParent = Path.GetFullPath(parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        if (!destination.StartsWith(normalizedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(destination, normalizedParent, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Geçersiz hedef yol.");
+        }
 
         if (Directory.Exists(path))
         {
@@ -124,8 +132,6 @@ public sealed class FileSystemService
 
     public void CopyItems(IEnumerable<string> sourcePaths, string destinationDirectory, bool move)
     {
-        var normalizedDestinationDirectory = Path.GetFullPath(destinationDirectory);
-
         foreach (var sourcePath in sourcePaths)
         {
             var name = Path.GetFileName(sourcePath)
@@ -143,8 +149,7 @@ public sealed class FileSystemService
 
             if (Directory.Exists(sourcePath))
             {
-                if (IsInsideDirectory(normalizedSourcePath, normalizedDestinationDirectory) ||
-                    IsInsideDirectory(normalizedDestinationPath, normalizedSourcePath))
+                if (IsInsideDirectory(normalizedDestinationPath, normalizedSourcePath))
                 {
                     throw new InvalidOperationException("Klasör kendi içine veya alt klasörüne taşınamaz.");
                 }
@@ -274,6 +279,15 @@ public sealed class FileSystemService
 
     private static void CopyDirectory(string sourceDir, string destinationDir)
     {
+        var normalizedSource = Path.GetFullPath(sourceDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var normalizedDestination = Path.GetFullPath(destinationDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+
+        if (string.Equals(normalizedSource, normalizedDestination, StringComparison.OrdinalIgnoreCase) ||
+            IsInsideDirectory(normalizedDestination, normalizedSource))
+        {
+            throw new InvalidOperationException("Klasör kendi içine veya alt klasörüne kopyalanamaz.");
+        }
+
         Directory.CreateDirectory(destinationDir);
 
         foreach (var file in Directory.GetFiles(sourceDir))

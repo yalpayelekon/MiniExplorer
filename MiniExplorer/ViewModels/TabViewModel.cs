@@ -1,7 +1,7 @@
 using System.IO;
 using System.Collections.ObjectModel;
+using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using MiniExplorer.Helpers;
 using MiniExplorer.Models;
 using MiniExplorer.Services;
@@ -12,21 +12,29 @@ public partial class TabViewModel : ObservableObject
 {
     private readonly FileSystemService _fileSystemService;
     private readonly ShellService _shellService;
+    private readonly ThumbnailService _thumbnailService;
     private CancellationTokenSource? _loadCts;
 
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
 
-    public TabViewModel(FileSystemService fileSystemService, ShellService shellService, string initialPath)
+    public TabViewModel(
+        FileSystemService fileSystemService,
+        ShellService shellService,
+        ThumbnailService thumbnailService,
+        string initialPath)
     {
         _fileSystemService = fileSystemService;
         _shellService = shellService;
+        _thumbnailService = thumbnailService;
         CurrentPath = initialPath;
         AddressText = initialPath == PathConstants.ThisPc ? "Bu bilgisayar" : initialPath;
         _ = LoadAsync();
     }
 
     public ObservableCollection<FileSystemEntry> Items { get; } = [];
+    public ObservableCollection<FileSystemEntry> FolderAndFileItems { get; } = [];
+    public ObservableCollection<FileSystemEntry> ImageItems { get; } = [];
 
     [ObservableProperty]
     private string _currentPath;
@@ -45,6 +53,12 @@ public partial class TabViewModel : ObservableObject
 
     [ObservableProperty]
     private FileSystemEntry? _selectedItem;
+
+    [ObservableProperty]
+    private bool _usePicturesLayout;
+
+    [ObservableProperty]
+    private bool _hasFolderAndFileItems;
 
     public ObservableCollection<FileSystemEntry> SelectedItems { get; } = [];
 
@@ -157,17 +171,45 @@ public partial class TabViewModel : ObservableObject
             IsLoading = true;
             StatusMessage = "Yükleniyor...";
 
+            UsePicturesLayout = PicturesPathHelper.IsUnderPictures(CurrentPath);
+
             var entries = await _fileSystemService.ListDirectoryAsync(CurrentPath, FilterText, token);
             token.ThrowIfCancellationRequested();
 
             Items.Clear();
+            FolderAndFileItems.Clear();
+            ImageItems.Clear();
+
             foreach (var entry in entries)
             {
                 entry.Icon = _shellService.GetIcon(entry.FullPath, entry.IsDirectory);
                 Items.Add(entry);
             }
 
-            StatusMessage = $"{Items.Count} öğe";
+            if (UsePicturesLayout)
+            {
+                foreach (var entry in entries)
+                {
+                    if (entry.IsDirectory || !PicturesPathHelper.IsImageFile(entry.FullPath))
+                    {
+                        FolderAndFileItems.Add(entry);
+                    }
+                    else
+                    {
+                        ImageItems.Add(entry);
+                    }
+                }
+
+                HasFolderAndFileItems = FolderAndFileItems.Count > 0;
+                StatusMessage = $"{entries.Count} öğe ({ImageItems.Count} resim)";
+                _ = LoadThumbnailsAsync(token);
+            }
+            else
+            {
+                HasFolderAndFileItems = false;
+                StatusMessage = $"{Items.Count} öğe";
+            }
+
             OnPropertyChanged(nameof(SelectionStatus));
         }
         catch (OperationCanceledException)
@@ -177,11 +219,47 @@ public partial class TabViewModel : ObservableObject
         catch (Exception ex)
         {
             Items.Clear();
+            FolderAndFileItems.Clear();
+            ImageItems.Clear();
+            HasFolderAndFileItems = false;
             StatusMessage = ex.Message;
         }
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    private async Task LoadThumbnailsAsync(CancellationToken token)
+    {
+        foreach (var entry in ImageItems.ToList())
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            try
+            {
+                var thumbnail = await _thumbnailService.GetThumbnailAsync(entry.FullPath, token);
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (thumbnail is not null)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() => entry.Thumbnail = thumbnail);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch
+            {
+                // Skip failed thumbnails.
+            }
         }
     }
 

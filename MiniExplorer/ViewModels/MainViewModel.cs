@@ -17,6 +17,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ShellService _shellService = new();
     private readonly ClipboardService _clipboardService = new();
     private readonly SessionService _sessionService = new();
+    private readonly ThumbnailService _thumbnailService = new();
 
     public MainViewModel()
     {
@@ -75,7 +76,7 @@ public partial class MainViewModel : ObservableObject
 
     private void AddTab(string tabPath, bool activate = true)
     {
-        var tab = new TabViewModel(_fileSystemService, _shellService, tabPath);
+        var tab = new TabViewModel(_fileSystemService, _shellService, _thumbnailService, tabPath);
         Tabs.Add(tab);
         if (activate)
         {
