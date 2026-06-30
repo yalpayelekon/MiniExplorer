@@ -27,6 +27,10 @@ code-signed, Windows SmartScreen may display a warning when it is first run.
 
 ![MiniExplorer context menu](MiniExplorer/Assets/screenshot-context-menu.png)
 
+### Settings
+
+![MiniExplorer settings](MiniExplorer/Assets/screenshot-settings.png)
+
 ## Features
 
 - Browse folders in multiple tabs with back, forward, up, and refresh navigation
@@ -35,9 +39,12 @@ code-signed, Windows SmartScreen may display a warning when it is first run.
 - Filter the contents of the current folder
 - Preview pictures in a thumbnail layout
 - Copy, cut, paste, rename, and move items to the Recycle Bin
+- Drag files and folders to Explorer, the desktop, and other Windows apps (multi-selection supported)
 - Open files with their associated applications
 - Open folders in Windows Explorer or Visual Studio Code
 - Open supported files in Notepad++
+- Customize the interface in Settings: theme, header style, density, icon size, and toolbar buttons
+- Switch between Turkish and English
 
 ## Requirements
 
