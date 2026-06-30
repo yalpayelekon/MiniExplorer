@@ -3,6 +3,16 @@
 MiniExplorer is a lightweight, tabbed file explorer for Windows built with WPF
 and .NET 10.
 
+## Download
+
+[**Download MiniExplorer.exe**](https://github.com/yalpayelekon/MiniExplorer/releases/latest/download/MiniExplorer.exe)
+
+The ready-to-run release supports 64-bit Windows 10 or later and does not
+require a separate .NET installation. Because the executable is not currently
+code-signed, Windows SmartScreen may display a warning when it is first run.
+
+[View all releases](https://github.com/yalpayelekon/MiniExplorer/releases)
+
 ## Features
 
 - Browse folders in multiple tabs with back, forward, up, and refresh navigation
@@ -17,8 +27,9 @@ and .NET 10.
 
 ## Requirements
 
-- Windows 10 or later
-- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- Windows 10 or later (64-bit)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) when building
+  from source
 
 ## Getting started
 
