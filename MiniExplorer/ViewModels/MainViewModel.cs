@@ -34,6 +34,8 @@ public partial class MainViewModel : ObservableObject
 
     public ObservableCollection<TabViewModel> Tabs { get; }
 
+    public event Action<IReadOnlyList<string>>? SelectionRestoreRequested;
+
     [ObservableProperty]
     private TabViewModel? _activeTab;
 
@@ -46,6 +48,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (_subscribedTab is not null)
         {
+            _subscribedTab.StopWatching();
             _subscribedTab.PropertyChanged -= Tab_PropertyChanged;
             _subscribedTab = null;
         }
@@ -56,6 +59,7 @@ public partial class MainViewModel : ObservableObject
             value.PropertyChanged += Tab_PropertyChanged;
             _subscribedTab = value;
             SaveSession();
+            _ = value.ActivateAsync();
         }
     }
 
@@ -77,6 +81,13 @@ public partial class MainViewModel : ObservableObject
     private void AddTab(string tabPath, bool activate = true)
     {
         var tab = new TabViewModel(_fileSystemService, _shellService, _thumbnailService, tabPath);
+        tab.SelectionRestoreRequested += paths =>
+        {
+            if (ReferenceEquals(ActiveTab, tab))
+            {
+                SelectionRestoreRequested?.Invoke(paths);
+            }
+        };
         Tabs.Add(tab);
         if (activate)
         {
@@ -132,6 +143,14 @@ public partial class MainViewModel : ObservableObject
             TabPaths = Tabs.Select(t => t.CurrentPath).ToList(),
             ActiveTabIndex = activeIndex
         });
+    }
+
+    public void Shutdown()
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.CancelPendingLoad();
+        }
     }
 
     private bool RestoreSession()

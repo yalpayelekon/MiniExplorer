@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = new MainViewModel();
+        ViewModel.SelectionRestoreRequested += RestoreSelection;
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.ActiveTab))
@@ -32,6 +33,44 @@ public partial class MainWindow : Window
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         ViewModel.SaveSession();
+        ViewModel.Shutdown();
+    }
+
+    private void RestoreSelection(IReadOnlyList<string> paths)
+    {
+        var pathSet = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        _syncingSelection = true;
+        try
+        {
+            ClearAllListSelections();
+
+            if (ViewModel.ActiveTab?.UsePicturesLayout == true)
+            {
+                SelectMatchingItems(FolderAndFileList, pathSet);
+                SelectMatchingItems(ThumbnailList, pathSet);
+            }
+            else
+            {
+                SelectMatchingItems(FileList, pathSet);
+            }
+        }
+        finally
+        {
+            _syncingSelection = false;
+        }
+
+        ViewModel.OnSelectionChanged(GetAllSelectedEntries().ToList());
+    }
+
+    private static void SelectMatchingItems(ListView listView, HashSet<string> paths)
+    {
+        foreach (var item in listView.Items.Cast<FileSystemEntry>())
+        {
+            if (paths.Contains(item.FullPath))
+            {
+                listView.SelectedItems.Add(item);
+            }
+        }
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

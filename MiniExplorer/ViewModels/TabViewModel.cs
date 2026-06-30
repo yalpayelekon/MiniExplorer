@@ -10,10 +10,18 @@ namespace MiniExplorer.ViewModels;
 
 public partial class TabViewModel : ObservableObject
 {
+    private static readonly TimeSpan WatchDebounceDelay = TimeSpan.FromMilliseconds(350);
+
     private readonly FileSystemService _fileSystemService;
     private readonly ShellService _shellService;
     private readonly ThumbnailService _thumbnailService;
     private CancellationTokenSource? _loadCts;
+    private CancellationTokenSource? _watchDebounceCts;
+    private FileSystemWatcher? _watcher;
+    private readonly object _watchLock = new();
+    private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
+    private bool _watchingRequested;
+    private int _watchGeneration;
 
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
@@ -62,6 +70,8 @@ public partial class TabViewModel : ObservableObject
 
     public ObservableCollection<FileSystemEntry> SelectedItems { get; } = [];
 
+    public event Action<IReadOnlyList<string>>? SelectionRestoreRequested;
+
     public void SetSelectedItems(IEnumerable<FileSystemEntry> items)
     {
         SelectedItems.Clear();
@@ -93,6 +103,10 @@ public partial class TabViewModel : ObservableObject
 
     public async Task NavigateToAsync(string path, bool addToHistory = true)
     {
+        var restartWatcher = _watchingRequested;
+        StopWatching();
+        var watchGeneration = _watchGeneration;
+
         if (addToHistory && !string.Equals(path, CurrentPath, StringComparison.OrdinalIgnoreCase))
         {
             _backStack.Push(CurrentPath);
@@ -106,6 +120,10 @@ public partial class TabViewModel : ObservableObject
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(CanGoUp));
         await LoadAsync();
+        if (restartWatcher && watchGeneration == _watchGeneration)
+        {
+            StartWatching();
+        }
     }
 
     public async Task GoBackAsync()
@@ -115,6 +133,9 @@ public partial class TabViewModel : ObservableObject
             return;
         }
 
+        var restartWatcher = _watchingRequested;
+        StopWatching();
+        var watchGeneration = _watchGeneration;
         _forwardStack.Push(CurrentPath);
         var previous = _backStack.Pop();
         CurrentPath = previous;
@@ -124,6 +145,10 @@ public partial class TabViewModel : ObservableObject
         OnPropertyChanged(nameof(CanGoForward));
         OnPropertyChanged(nameof(CanGoUp));
         await LoadAsync();
+        if (restartWatcher && watchGeneration == _watchGeneration)
+        {
+            StartWatching();
+        }
     }
 
     public async Task GoForwardAsync()
@@ -133,6 +158,9 @@ public partial class TabViewModel : ObservableObject
             return;
         }
 
+        var restartWatcher = _watchingRequested;
+        StopWatching();
+        var watchGeneration = _watchGeneration;
         _backStack.Push(CurrentPath);
         var next = _forwardStack.Pop();
         CurrentPath = next;
@@ -142,6 +170,10 @@ public partial class TabViewModel : ObservableObject
         OnPropertyChanged(nameof(CanGoForward));
         OnPropertyChanged(nameof(CanGoUp));
         await LoadAsync();
+        if (restartWatcher && watchGeneration == _watchGeneration)
+        {
+            StartWatching();
+        }
     }
 
     public async Task GoUpAsync()
@@ -155,21 +187,33 @@ public partial class TabViewModel : ObservableObject
         await NavigateToAsync(parent);
     }
 
-    public async Task RefreshAsync() => await LoadAsync();
+    public async Task RefreshAsync()
+    {
+        CancelScheduledAutoRefresh();
+        await LoadAsync();
+    }
 
     partial void OnFilterTextChanged(string value) => _ = LoadAsync();
 
-    public async Task LoadAsync()
+    public async Task LoadAsync(bool showLoading = true, bool restoreSelection = false)
     {
+        var selectedPaths = restoreSelection
+            ? SelectedItems.Select(item => item.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase)
+            : null;
+
         _loadCts?.Cancel();
         _loadCts?.Dispose();
-        _loadCts = new CancellationTokenSource();
-        var token = _loadCts.Token;
+        var loadCts = new CancellationTokenSource();
+        _loadCts = loadCts;
+        var token = loadCts.Token;
 
         try
         {
-            IsLoading = true;
-            StatusMessage = "Yükleniyor...";
+            if (showLoading)
+            {
+                IsLoading = true;
+                StatusMessage = "Yükleniyor...";
+            }
 
             UsePicturesLayout = PicturesPathHelper.IsUnderPictures(CurrentPath);
 
@@ -211,6 +255,15 @@ public partial class TabViewModel : ObservableObject
             }
 
             OnPropertyChanged(nameof(SelectionStatus));
+
+            if (selectedPaths is not null)
+            {
+                var survivingPaths = entries
+                    .Select(entry => entry.FullPath)
+                    .Where(selectedPaths.Contains)
+                    .ToList();
+                SelectionRestoreRequested?.Invoke(survivingPaths);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -226,8 +279,192 @@ public partial class TabViewModel : ObservableObject
         }
         finally
         {
-            IsLoading = false;
+            if (ReferenceEquals(_loadCts, loadCts))
+            {
+                IsLoading = false;
+            }
         }
+    }
+
+    public async Task ActivateAsync()
+    {
+        StartWatching();
+        await LoadAsync(showLoading: false, restoreSelection: true);
+    }
+
+    public void StartWatching()
+    {
+        _watchGeneration++;
+        _watchingRequested = true;
+        RecreateWatcher();
+    }
+
+    public void StopWatching()
+    {
+        _watchGeneration++;
+        _watchingRequested = false;
+        CancelScheduledAutoRefresh();
+        DisposeWatcher();
+    }
+
+    private void CancelScheduledAutoRefresh()
+    {
+        lock (_watchLock)
+        {
+            _watchDebounceCts?.Cancel();
+            _watchDebounceCts?.Dispose();
+            _watchDebounceCts = null;
+            _changedPaths.Clear();
+        }
+    }
+
+    private void RecreateWatcher()
+    {
+        DisposeWatcher();
+
+        if (!_watchingRequested ||
+            CurrentPath == PathConstants.ThisPc ||
+            !Directory.Exists(CurrentPath))
+        {
+            return;
+        }
+
+        try
+        {
+            var watcher = new FileSystemWatcher(CurrentPath)
+            {
+                IncludeSubdirectories = false,
+                NotifyFilter = NotifyFilters.FileName |
+                               NotifyFilters.DirectoryName |
+                               NotifyFilters.LastWrite |
+                               NotifyFilters.Size,
+                Filter = "*",
+                EnableRaisingEvents = false
+            };
+
+            watcher.Created += Watcher_Changed;
+            watcher.Changed += Watcher_Changed;
+            watcher.Deleted += Watcher_Changed;
+            watcher.Renamed += Watcher_Renamed;
+            watcher.Error += Watcher_Error;
+            _watcher = watcher;
+            watcher.EnableRaisingEvents = true;
+        }
+        catch
+        {
+            DisposeWatcher();
+        }
+    }
+
+    private void Watcher_Changed(object sender, FileSystemEventArgs e)
+    {
+        if (ReferenceEquals(sender, _watcher))
+        {
+            ScheduleAutoRefresh(e.FullPath);
+        }
+    }
+
+    private void Watcher_Renamed(object sender, RenamedEventArgs e)
+    {
+        if (ReferenceEquals(sender, _watcher))
+        {
+            ScheduleAutoRefresh(e.FullPath, e.OldFullPath);
+        }
+    }
+
+    private void Watcher_Error(object sender, ErrorEventArgs e)
+    {
+        if (!ReferenceEquals(sender, _watcher))
+        {
+            return;
+        }
+
+        DisposeWatcher();
+        ScheduleAutoRefresh();
+    }
+
+    private void ScheduleAutoRefresh(params string[] paths)
+    {
+        if (!_watchingRequested)
+        {
+            return;
+        }
+
+        CancellationToken token;
+        lock (_watchLock)
+        {
+            foreach (var path in paths)
+            {
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    _changedPaths.Add(path);
+                }
+            }
+
+            _watchDebounceCts?.Cancel();
+            _watchDebounceCts?.Dispose();
+            _watchDebounceCts = new CancellationTokenSource();
+            token = _watchDebounceCts.Token;
+        }
+
+        _ = DebounceAutoRefreshAsync(token);
+    }
+
+    private async Task DebounceAutoRefreshAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(WatchDebounceDelay, token);
+
+            string[] changedPaths;
+            lock (_watchLock)
+            {
+                token.ThrowIfCancellationRequested();
+                changedPaths = _changedPaths.ToArray();
+                _changedPaths.Clear();
+            }
+
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                if (!_watchingRequested || token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                _thumbnailService.Invalidate(changedPaths);
+                await LoadAsync(showLoading: false, restoreSelection: true);
+
+                if (_watcher is null)
+                {
+                    RecreateWatcher();
+                }
+            }).Task.Unwrap();
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer file-system event replaced this refresh.
+        }
+        catch
+        {
+            // Keep manual refresh available if watching or recovery fails.
+        }
+    }
+
+    private void DisposeWatcher()
+    {
+        var watcher = Interlocked.Exchange(ref _watcher, null);
+        if (watcher is null)
+        {
+            return;
+        }
+
+        watcher.EnableRaisingEvents = false;
+        watcher.Created -= Watcher_Changed;
+        watcher.Changed -= Watcher_Changed;
+        watcher.Deleted -= Watcher_Changed;
+        watcher.Renamed -= Watcher_Renamed;
+        watcher.Error -= Watcher_Error;
+        watcher.Dispose();
     }
 
     private async Task LoadThumbnailsAsync(CancellationToken token)
@@ -265,6 +502,7 @@ public partial class TabViewModel : ObservableObject
 
     public void CancelPendingLoad()
     {
+        StopWatching();
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _loadCts = null;

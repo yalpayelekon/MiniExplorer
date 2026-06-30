@@ -50,6 +50,18 @@ public sealed class ThumbnailService
         }
     }
 
+    public void Invalidate(IEnumerable<string> paths)
+    {
+        lock (_cacheLock)
+        {
+            foreach (var path in paths)
+            {
+                _cache.Remove(path, out _);
+                _cacheOrder.Remove(path);
+            }
+        }
+    }
+
     private static ImageSource? LoadThumbnail(string path, int size)
     {
         try
