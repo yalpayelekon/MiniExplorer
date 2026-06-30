@@ -13,6 +13,20 @@ code-signed, Windows SmartScreen may display a warning when it is first run.
 
 [View all releases](https://github.com/yalpayelekon/MiniExplorer/releases)
 
+## Screenshots
+
+### File browsing
+
+![MiniExplorer file browser](MiniExplorer/Assets/screenshot-file-list.png)
+
+### Picture gallery
+
+![MiniExplorer picture gallery](MiniExplorer/Assets/screenshot-picture-gallery.png)
+
+### Context menu
+
+![MiniExplorer context menu](MiniExplorer/Assets/screenshot-context-menu.png)
+
 ## Features
 
 - Browse folders in multiple tabs with back, forward, up, and refresh navigation
