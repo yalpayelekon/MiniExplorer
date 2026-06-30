@@ -37,6 +37,26 @@ public partial class MainWindow : Window
         };
         UpdateSortHeaders();
         LocalizationService.Instance.LanguageChanged += (_, _) => UpdateSortHeaders();
+        SetupFileListDragDrop();
+    }
+
+    private void SetupFileListDragDrop()
+    {
+        void Attach(ListView listView)
+        {
+            FileDragDropHelper.Attach(
+                listView,
+                static (lv, position) =>
+                {
+                    var item = GetListViewItemUnderMouse(lv, position);
+                    return item?.Content as FileSystemEntry;
+                },
+                () => GetAllSelectedEntries().Select(entry => entry.FullPath).ToList());
+        }
+
+        Attach(FileList);
+        Attach(FolderAndFileList);
+        Attach(ThumbnailList);
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)

@@ -1,6 +1,4 @@
-using System.Collections.ObjectModel;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 
@@ -49,32 +47,20 @@ public sealed class ClipboardService
       return;
     }
 
-    var dropFiles = BuildDropFilesStructure(paths);
-    var data = new System.Windows.DataObject();
-    data.SetData("Preferred DropEffect", isCut ? new MemoryStream(Encoding.Unicode.GetBytes("2\0")) : new MemoryStream(Encoding.Unicode.GetBytes("5\0")));
-    data.SetData(System.Windows.DataFormats.FileDrop, paths.ToArray());
-    data.SetData("FileNameW", paths.ToArray());
-    Clipboard.SetDataObject(data, copy: true);
+    Clipboard.SetDataObject(CreateFileDataObject(paths, isCut), copy: true);
   }
 
-  private static byte[] BuildDropFilesStructure(IReadOnlyList<string> paths)
+  public static DataObject CreateFileDataObject(IReadOnlyList<string> paths, bool isCut = false)
   {
-    using var stream = new MemoryStream();
-    using var writer = new BinaryWriter(stream);
-
-    writer.Write(20);
-    writer.Write(0);
-    writer.Write(0);
-    writer.Write(0);
-    writer.Write(0);
-
-    foreach (var path in paths)
+    if (paths.Count == 0)
     {
-      var bytes = Encoding.Unicode.GetBytes(path + '\0');
-      writer.Write(bytes);
+      throw new ArgumentException("At least one path is required.", nameof(paths));
     }
 
-    writer.Write((ushort)0);
-    return stream.ToArray();
+    var data = new DataObject();
+    data.SetData("Preferred DropEffect", isCut ? new MemoryStream(Encoding.Unicode.GetBytes("2\0")) : new MemoryStream(Encoding.Unicode.GetBytes("5\0")));
+    data.SetData(DataFormats.FileDrop, paths.ToArray());
+    data.SetData("FileNameW", paths.ToArray());
+    return data;
   }
 }
