@@ -769,11 +769,14 @@ public partial class TabViewModel : ObservableObject
 
             var thumbnailTask = LoadThumbnailsBoundedAsync(entries, token, prioritizePaths);
 
-            // Keep shell tile-icon extraction serialized; Windows shell icon
-            // providers are not reliably re-entrant.
             foreach (var entry in entries)
             {
                 token.ThrowIfCancellationRequested();
+                if (PicturesPathHelper.IsImageFile(entry.FullPath))
+                {
+                    continue;
+                }
+
                 if (entry.TileIcon is null || prioritizePaths?.Contains(entry.FullPath) == true)
                 {
                     await LoadSingleTileIconAsync(entry, token);

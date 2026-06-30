@@ -91,7 +91,7 @@
   <data name="Settings_ShowRefresh" xml:space="preserve"><value>Refresh</value></data>
   <data name="Settings_ShowCopyPath" xml:space="preserve"><value>Copy path</value></data>
   <data name="Settings_ShowExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
-  <data name="Settings_SettingsAlwaysVisible" xml:space="preserve"><value>The Settings button always remains visible.</value></data>
+  <data name="Settings_SettingsAlwaysVisible" xml:space="preserve"><value>The Settings button always remains visible at the bottom of the sidebar.</value></data>
   <data name="Sidebar_Home" xml:space="preserve"><value>Home</value></data>
   <data name="Sidebar_Desktop" xml:space="preserve"><value>Desktop</value></data>
   <data name="Sidebar_Downloads" xml:space="preserve"><value>Downloads</value></data>

@@ -7,19 +7,36 @@ namespace MiniExplorer.Helpers;
 
 public static class DpiHelper
 {
+    private static double _cachedScale = 1.0;
+
     public static double Scale
     {
         get
         {
-            var window = Application.Current?.MainWindow;
-            if (window is null)
-            {
-                return 1.0;
-            }
-
-            var source = PresentationSource.FromVisual(window);
-            return source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+            RefreshScaleIfOnUiThread();
+            return _cachedScale;
         }
+    }
+
+    /// <summary>
+    /// Reads the current monitor scale on the UI thread and caches it for background workers.
+    /// </summary>
+    public static void RefreshScaleIfOnUiThread()
+    {
+        var app = Application.Current;
+        if (app is null || !app.Dispatcher.CheckAccess())
+        {
+            return;
+        }
+
+        var window = app.MainWindow;
+        if (window is null)
+        {
+            return;
+        }
+
+        var source = PresentationSource.FromVisual(window);
+        _cachedScale = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
     }
 
     public static int ToPhysicalPixels(double logicalPixels) =>

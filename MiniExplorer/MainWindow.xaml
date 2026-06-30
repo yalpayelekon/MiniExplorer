@@ -66,6 +66,21 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="4"/>
         </Style>
+
+        <Style x:Key="SidebarFooterButtonStyle" TargetType="Button">
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Foreground}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -228,11 +243,6 @@
                             Visibility="{Binding DataContext.ShowExplorerButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding DataContext.OpenCurrentPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_OpenExplorer}"/>
-                    <Button Style="{StaticResource ToolbarButtonStyle}"
-                            FontFamily="Segoe MDL2 Assets"
-                            Content="&#xE713;"
-                            Command="{Binding DataContext.OpenSettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Settings}"/>
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          Style="{StaticResource ToolbarTextBoxStyle}"
@@ -276,23 +286,44 @@
             <Border Background="{DynamicResource Brush.Sidebar}"
                     BorderBrush="{DynamicResource Brush.Border}"
                     BorderThickness="0,0,1,0">
-                <ListBox x:Name="SidebarList"
-                         ItemsSource="{Binding Sidebar.Items}"
-                         ItemContainerStyle="{StaticResource SidebarItemStyle}"
-                         MouseDoubleClick="SidebarList_MouseDoubleClick"
-                         PreviewMouseDown="SidebarList_PreviewMouseDown"
-                         ContextMenuOpening="Sidebar_ContextMenuOpening">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate DataType="{x:Type models:SidebarItem}">
-                            <DockPanel LastChildFill="True">
-                                <TextBlock Text="📌"
-                                           DockPanel.Dock="Right"
-                                           Visibility="{Binding IsPinned, Converter={StaticResource BoolToVisibility}}"/>
-                                <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
-                            </DockPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Bottom"
+                            BorderBrush="{DynamicResource Brush.Border}"
+                            BorderThickness="0,1,0,0">
+                        <Button Style="{StaticResource SidebarFooterButtonStyle}"
+                                Command="{Binding OpenSettingsCommand}"
+                                ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Settings}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="&#xE713;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,10,0"/>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Settings}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                    </Border>
+                    <ListBox x:Name="SidebarList"
+                             ItemsSource="{Binding Sidebar.Items}"
+                             ItemContainerStyle="{StaticResource SidebarItemStyle}"
+                             MouseDoubleClick="SidebarList_MouseDoubleClick"
+                             PreviewMouseDown="SidebarList_PreviewMouseDown"
+                             ContextMenuOpening="Sidebar_ContextMenuOpening"
+                             BorderThickness="0"
+                             Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:SidebarItem}">
+                                <DockPanel LastChildFill="True">
+                                    <TextBlock Text="📌"
+                                               DockPanel.Dock="Right"
+                                               Visibility="{Binding IsPinned, Converter={StaticResource BoolToVisibility}}"/>
+                                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
             </Border>
 
             <GridSplitter Grid.Column="1"

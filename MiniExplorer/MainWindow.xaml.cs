@@ -49,6 +49,7 @@ public partial class MainWindow : Window
             InitializeViewModeComboBoxes();
         };
         SetupFileListDragDrop();
+        Loaded += (_, _) => DpiHelper.RefreshScaleIfOnUiThread();
     }
 
     private void InitializeViewModeComboBoxes()
@@ -137,6 +138,7 @@ public partial class MainWindow : Window
 
     private void Window_DpiChanged(object sender, DpiChangedEventArgs e)
     {
+        DpiHelper.RefreshScaleIfOnUiThread();
         ViewModel.HandleDpiChanged();
     }
 

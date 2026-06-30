@@ -226,10 +226,11 @@ public sealed class ThumbnailService
     {
         try
         {
+            using var stream = File.OpenRead(path);
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.UriSource = new Uri(path, UriKind.Absolute);
+            bitmap.StreamSource = stream;
             bitmap.DecodePixelWidth = size;
             bitmap.EndInit();
             bitmap.Freeze();
