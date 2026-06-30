@@ -4,7 +4,7 @@
         Height="360"
         Width="480"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource Brush.Background}">
+        Background="{DynamicResource Brush.Background}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>

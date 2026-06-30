@@ -27,7 +27,14 @@ public partial class MainWindow : Window
             {
                 ClearFileSelection();
             }
+
+            if (e.PropertyName == nameof(MainViewModel.SortField) ||
+                e.PropertyName == nameof(MainViewModel.SortAscending))
+            {
+                UpdateSortHeaders();
+            }
         };
+        UpdateSortHeaders();
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -71,6 +78,38 @@ public partial class MainWindow : Window
                 listView.SelectedItems.Add(item);
             }
         }
+    }
+
+    private void GridViewColumnHeader_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is GridViewColumnHeader { Tag: SortField sortField })
+        {
+            ViewModel.ChangeSort(sortField);
+        }
+    }
+
+    private void UpdateSortHeaders()
+    {
+        UpdateSortHeader(NameHeader, SortField.Name, "Ad");
+        UpdateSortHeader(ModifiedHeader, SortField.Modified, "Değiştirilme");
+        UpdateSortHeader(TypeHeader, SortField.Type, "Tür");
+        UpdateSortHeader(SizeHeader, SortField.Size, "Boyut");
+        UpdateSortHeader(PicturesNameHeader, SortField.Name, "Ad");
+        UpdateSortHeader(PicturesModifiedHeader, SortField.Modified, "Değiştirilme");
+        UpdateSortHeader(PicturesTypeHeader, SortField.Type, "Tür");
+        UpdateSortHeader(PicturesSizeHeader, SortField.Size, "Boyut");
+    }
+
+    private void UpdateSortHeader(GridViewColumnHeader header, SortField field, string label)
+    {
+        header.Content = ViewModel.SortField == field
+            ? $"{label} {(ViewModel.SortAscending ? "▲" : "▼")}"
+            : label;
+    }
+
+    private void SidebarSplitter_DragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        ViewModel.SidebarWidth = Math.Clamp(SidebarColumn.ActualWidth, 180, 420);
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

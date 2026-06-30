@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniExplorer.Helpers;
@@ -18,11 +19,15 @@ public partial class MainViewModel : ObservableObject
     private readonly ClipboardService _clipboardService = new();
     private readonly SessionService _sessionService = new();
     private readonly ThumbnailService _thumbnailService = new();
+    private readonly SettingsService _settingsService = new();
+    private CancellationTokenSource? _settingsSaveCts;
+    private bool _suppressSortChange;
 
     public MainViewModel()
     {
         Sidebar = new SidebarViewModel(_quickAccessService, _fileSystemService);
         Tabs = new ObservableCollection<TabViewModel>();
+        LoadSettings();
 
         if (!RestoreSession())
         {
@@ -42,7 +47,120 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _globalStatus = "Hazır";
 
+    [ObservableProperty]
+    private ThemePreset _theme = ThemePreset.Dark;
+
+    [ObservableProperty]
+    private IconSizePreset _iconSize = IconSizePreset.Medium;
+
+    [ObservableProperty]
+    private HeaderStylePreset _headerStyle = HeaderStylePreset.Default;
+
+    [ObservableProperty]
+    private HeaderDensityPreset _headerDensity = HeaderDensityPreset.Normal;
+
+    [ObservableProperty]
+    private bool _showBackButton = true;
+
+    [ObservableProperty]
+    private bool _showForwardButton = true;
+
+    [ObservableProperty]
+    private bool _showUpButton = true;
+
+    [ObservableProperty]
+    private bool _showRefreshButton = true;
+
+    [ObservableProperty]
+    private bool _showCopyPathButton = true;
+
+    [ObservableProperty]
+    private bool _showExplorerButton = true;
+
+    [ObservableProperty]
+    private double _sidebarWidth = 240;
+
+    [ObservableProperty]
+    private SortField _sortField = SortField.Name;
+
+    [ObservableProperty]
+    private bool _sortAscending = true;
+
     private TabViewModel? _subscribedTab;
+
+    public GridLength SidebarWidthGrid => new(Math.Clamp(SidebarWidth, 180, 420));
+
+    public double ListIconSize => IconSize switch
+    {
+        IconSizePreset.Small => 16,
+        IconSizePreset.Large => 28,
+        _ => 20
+    };
+
+    public double ThumbnailTileWidth => IconSize switch
+    {
+        IconSizePreset.Small => 220,
+        IconSizePreset.Large => 320,
+        _ => 270
+    };
+
+    public double ThumbnailContentWidth => ThumbnailTileWidth - 18;
+
+    public double ThumbnailImageHeight => IconSize switch
+    {
+        IconSizePreset.Small => 150,
+        IconSizePreset.Large => 230,
+        _ => 195
+    };
+
+    public double ToolbarControlSize => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => 32,
+        HeaderDensityPreset.Spacious => 44,
+        _ => 38
+    };
+
+    public double HeaderFontSize => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => 14,
+        HeaderDensityPreset.Spacious => 17,
+        _ => 16
+    };
+
+    public Thickness TabItemPadding => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => new Thickness(10, 4, 7, 4),
+        HeaderDensityPreset.Spacious => new Thickness(14, 8, 10, 8),
+        _ => new Thickness(12, 6, 8, 6)
+    };
+
+    public Thickness TabBarPadding => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => new Thickness(8, 4, 8, 0),
+        HeaderDensityPreset.Spacious => new Thickness(10, 8, 10, 0),
+        _ => new Thickness(8, 6, 8, 0)
+    };
+
+    public Thickness ToolbarPadding => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => new Thickness(8, 5, 8, 5),
+        HeaderDensityPreset.Spacious => new Thickness(12, 9, 12, 9),
+        _ => new Thickness(10, 7, 10, 7)
+    };
+
+    public double TabChromeButtonSize => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => 20,
+        HeaderDensityPreset.Spacious => 26,
+        _ => 22
+    };
+
+    public double TabCloseFontSize => HeaderDensity switch
+    {
+        HeaderDensityPreset.Compact => 12,
+        HeaderDensityPreset.Spacious => 16,
+        _ => 14
+    };
 
     partial void OnActiveTabChanged(TabViewModel? value)
     {
@@ -63,6 +181,100 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    partial void OnThemeChanged(ThemePreset value)
+    {
+        ApplyTheme(value);
+        ScheduleSettingsSave();
+    }
+
+    partial void OnHeaderStyleChanged(HeaderStylePreset value)
+    {
+        ApplyHeaderStyle(GetThemePalette(Theme));
+        ScheduleSettingsSave();
+    }
+
+    partial void OnHeaderDensityChanged(HeaderDensityPreset value)
+    {
+        OnPropertyChanged(nameof(ToolbarControlSize));
+        OnPropertyChanged(nameof(HeaderFontSize));
+        OnPropertyChanged(nameof(TabItemPadding));
+        OnPropertyChanged(nameof(TabBarPadding));
+        OnPropertyChanged(nameof(ToolbarPadding));
+        OnPropertyChanged(nameof(TabChromeButtonSize));
+        OnPropertyChanged(nameof(TabCloseFontSize));
+        ScheduleSettingsSave();
+    }
+
+    partial void OnShowBackButtonChanged(bool value) => ScheduleSettingsSave();
+    partial void OnShowForwardButtonChanged(bool value) => ScheduleSettingsSave();
+    partial void OnShowUpButtonChanged(bool value) => ScheduleSettingsSave();
+    partial void OnShowRefreshButtonChanged(bool value) => ScheduleSettingsSave();
+    partial void OnShowCopyPathButtonChanged(bool value) => ScheduleSettingsSave();
+    partial void OnShowExplorerButtonChanged(bool value) => ScheduleSettingsSave();
+
+    partial void OnIconSizeChanged(IconSizePreset value)
+    {
+        OnPropertyChanged(nameof(ListIconSize));
+        OnPropertyChanged(nameof(ThumbnailTileWidth));
+        OnPropertyChanged(nameof(ThumbnailContentWidth));
+        OnPropertyChanged(nameof(ThumbnailImageHeight));
+        ScheduleSettingsSave();
+    }
+
+    partial void OnSidebarWidthChanged(double value)
+    {
+        OnPropertyChanged(nameof(SidebarWidthGrid));
+        ScheduleSettingsSave();
+    }
+
+    partial void OnSortFieldChanged(SortField value)
+    {
+        if (_suppressSortChange)
+        {
+            return;
+        }
+
+        ApplySortToTabs(refreshActive: true);
+        ScheduleSettingsSave();
+    }
+
+    partial void OnSortAscendingChanged(bool value)
+    {
+        if (_suppressSortChange)
+        {
+            return;
+        }
+
+        ApplySortToTabs(refreshActive: true);
+        ScheduleSettingsSave();
+    }
+
+    public void ChangeSort(SortField sortField)
+    {
+        var sortAscending = SortField == sortField ? !SortAscending : true;
+        var fieldChanged = SortField != sortField;
+        var directionChanged = SortAscending != sortAscending;
+
+        if (!fieldChanged && !directionChanged)
+        {
+            return;
+        }
+
+        _suppressSortChange = true;
+        try
+        {
+            SortField = sortField;
+            SortAscending = sortAscending;
+        }
+        finally
+        {
+            _suppressSortChange = false;
+        }
+
+        ApplySortToTabs(refreshActive: true);
+        ScheduleSettingsSave();
+    }
+
     private void Tab_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (sender is TabViewModel tab &&
@@ -81,6 +293,7 @@ public partial class MainViewModel : ObservableObject
     private void AddTab(string tabPath, bool activate = true)
     {
         var tab = new TabViewModel(_fileSystemService, _shellService, _thumbnailService, tabPath);
+        tab.SetSortOptions(SortField, SortAscending);
         tab.SelectionRestoreRequested += paths =>
         {
             if (ReferenceEquals(ActiveTab, tab))
@@ -145,8 +358,216 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
+    private void LoadSettings()
+    {
+        var settings = _settingsService.Load();
+        Theme = settings.Theme;
+        IconSize = settings.IconSize;
+        HeaderStyle = settings.HeaderStyle;
+        HeaderDensity = settings.HeaderDensity;
+        ShowBackButton = settings.ShowBackButton;
+        ShowForwardButton = settings.ShowForwardButton;
+        ShowUpButton = settings.ShowUpButton;
+        ShowRefreshButton = settings.ShowRefreshButton;
+        ShowCopyPathButton = settings.ShowCopyPathButton;
+        ShowExplorerButton = settings.ShowExplorerButton;
+        SidebarWidth = Math.Clamp(settings.SidebarWidth, 180, 420);
+        SortField = settings.SortField;
+        SortAscending = settings.SortAscending;
+        ApplyTheme(Theme);
+    }
+
+    private void ApplySortToTabs(bool refreshActive)
+    {
+        foreach (var tab in Tabs)
+        {
+            if (!refreshActive || !ReferenceEquals(tab, ActiveTab))
+            {
+                tab.SortField = SortField;
+                tab.SortAscending = SortAscending;
+            }
+            else
+            {
+                tab.SetSortOptions(SortField, SortAscending);
+            }
+        }
+    }
+
+    private void ScheduleSettingsSave()
+    {
+        _settingsSaveCts?.Cancel();
+        _settingsSaveCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _settingsSaveCts = cts;
+        _ = SaveSettingsAsync(cts.Token);
+    }
+
+    private async Task SaveSettingsAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(300, token);
+            TrySaveSettingsNow();
+        }
+        catch (OperationCanceledException)
+        {
+            // Newer setting value replaced this save.
+        }
+    }
+
+    private void TrySaveSettingsNow()
+    {
+        try
+        {
+            _settingsService.Save(new AppSettings
+            {
+                Theme = Theme,
+                IconSize = IconSize,
+                HeaderStyle = HeaderStyle,
+                HeaderDensity = HeaderDensity,
+                ShowBackButton = ShowBackButton,
+                ShowForwardButton = ShowForwardButton,
+                ShowUpButton = ShowUpButton,
+                ShowRefreshButton = ShowRefreshButton,
+                ShowCopyPathButton = ShowCopyPathButton,
+                ShowExplorerButton = ShowExplorerButton,
+                SidebarWidth = Math.Clamp(SidebarWidth, 180, 420),
+                SortField = SortField,
+                SortAscending = SortAscending
+            });
+        }
+        catch
+        {
+            // Settings persistence must not interrupt the application.
+        }
+    }
+
+    private void ApplyTheme(ThemePreset preset)
+    {
+        var palette = GetThemePalette(preset);
+        SetBrush("Brush.Background", palette.Background);
+        SetBrush("Brush.Sidebar", palette.Sidebar);
+        SetBrush("Brush.Surface", palette.Surface);
+        SetBrush("Brush.Border", palette.Border);
+        SetBrush("Brush.Foreground", palette.Foreground);
+        SetBrush("Brush.ForegroundMuted", palette.Muted);
+        SetBrush("Brush.Selection", palette.Selection);
+        SetBrush("Brush.Hover", palette.Hover);
+        SetBrush("Brush.Accent", palette.Accent);
+        SetBrush("Brush.TabBar", palette.TabBar);
+        SetBrush("Brush.TabInactive", palette.TabInactive);
+        SetBrush("Brush.TabInactiveBorder", palette.Border);
+        SetBrush("Brush.TabActive", palette.Accent);
+        SetBrush("Brush.TabAccent", palette.Accent);
+        SetBrush("Brush.TabInactiveForeground", palette.Muted);
+        SetBrush("Brush.TabActiveForeground", GetContrastColor(palette.Accent));
+        ApplyHeaderStyle(palette);
+    }
+
+    private void ApplyHeaderStyle(ThemePalette palette)
+    {
+        var headerBackground = palette.TabBar;
+        var headerSurface = palette.Surface;
+        var headerBorder = palette.Border;
+        var headerForeground = palette.Foreground;
+        var headerMuted = palette.Muted;
+
+        if (HeaderStyle == HeaderStylePreset.Darker)
+        {
+            headerBackground = AdjustBrightness(headerBackground, 0.88);
+            headerSurface = AdjustBrightness(headerSurface, 0.88);
+        }
+        else if (HeaderStyle == HeaderStylePreset.Accent)
+        {
+            headerBackground = palette.Accent;
+            headerSurface = AdjustBrightness(palette.Accent, 0.86);
+            headerBorder = AdjustBrightness(palette.Accent, 0.68);
+            headerForeground = GetContrastColor(palette.Accent);
+            headerMuted = AdjustBrightness(headerForeground, 0.72);
+        }
+
+        SetBrush("Brush.HeaderBackground", headerBackground);
+        SetBrush("Brush.HeaderSurface", headerSurface);
+        SetBrush("Brush.HeaderBorder", headerBorder);
+        SetBrush("Brush.HeaderForeground", headerForeground);
+        SetBrush("Brush.HeaderMuted", headerMuted);
+        SetBrush("Brush.HeaderButton", AdjustBrightness(headerSurface, 0.92));
+        SetBrush("Brush.HeaderButtonHover", AdjustBrightness(headerSurface, 1.12));
+        SetBrush("Brush.HeaderInput", AdjustBrightness(headerSurface, 1.05));
+
+        if (HeaderStyle == HeaderStylePreset.Accent)
+        {
+            SetBrush("Brush.TabInactive", AdjustBrightness(palette.Accent, 0.75));
+            SetBrush("Brush.TabInactiveBorder", headerBorder);
+            SetBrush("Brush.TabActive", AdjustBrightness(palette.Accent, 1.18));
+            SetBrush("Brush.TabAccent", headerForeground);
+            SetBrush("Brush.TabInactiveForeground", headerMuted);
+            SetBrush("Brush.TabActiveForeground", headerForeground);
+        }
+        else
+        {
+            SetBrush("Brush.TabInactive", palette.TabInactive);
+            SetBrush("Brush.TabInactiveBorder", palette.Border);
+            SetBrush("Brush.TabActive", palette.Accent);
+            SetBrush("Brush.TabAccent", palette.Accent);
+            SetBrush("Brush.TabInactiveForeground", palette.Muted);
+            SetBrush("Brush.TabActiveForeground", GetContrastColor(palette.Accent));
+        }
+    }
+
+    private static ThemePalette GetThemePalette(ThemePreset preset) => preset switch
+    {
+        ThemePreset.Blue => new("#162433", "#1D2C3D", "#22384D", "#35546C", "#DCEBFF", "#A9C1D9", "#2E4A61", "#35536C", "#5BC0EB", "#1A2332", "#243548"),
+        ThemePreset.Amoled => new("#000000", "#080808", "#121212", "#292929", "#F5F5F5", "#A8A8A8", "#173D25", "#1B1B1B", "#00C853", "#050505", "#111111"),
+        ThemePreset.Nord => new("#2E3440", "#3B4252", "#434C5E", "#4C566A", "#ECEFF4", "#D8DEE9", "#4C566A", "#505A6B", "#88C0D0", "#292E39", "#3B4252"),
+        ThemePreset.Dracula => new("#282A36", "#21222C", "#343746", "#44475A", "#F8F8F2", "#BFBFC7", "#44475A", "#3D4050", "#BD93F9", "#21222C", "#343746"),
+        ThemePreset.Light => new("#F5F7FA", "#E9EEF5", "#FFFFFF", "#CBD5E1", "#1F2937", "#64748B", "#DBEAFE", "#E8EEF6", "#2563EB", "#E2E8F0", "#F1F5F9"),
+        _ => new("#1E1E1E", "#252526", "#2D2D30", "#3F3F46", "#CCCCCC", "#9DA5B4", "#37373D", "#2A2D2E", "#2196F3", "#1A2332", "#243548")
+    };
+
+    private static string AdjustBrightness(string colorHex, double factor)
+    {
+        var color = (Color)ColorConverter.ConvertFromString(colorHex)!;
+        return $"#{(byte)Math.Clamp(color.R * factor, 0, 255):X2}{(byte)Math.Clamp(color.G * factor, 0, 255):X2}{(byte)Math.Clamp(color.B * factor, 0, 255):X2}";
+    }
+
+    private static string GetContrastColor(string colorHex)
+    {
+        var color = (Color)ColorConverter.ConvertFromString(colorHex)!;
+        var luminance = (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255;
+        return luminance > 0.55 ? "#111827" : "#FFFFFF";
+    }
+
+    private static void SetBrush(string key, string colorHex)
+    {
+        if (ColorConverter.ConvertFromString(colorHex) is not Color color)
+        {
+            return;
+        }
+
+        Application.Current.Resources[key] = new SolidColorBrush(color);
+    }
+
+    private sealed record ThemePalette(
+        string Background,
+        string Sidebar,
+        string Surface,
+        string Border,
+        string Foreground,
+        string Muted,
+        string Selection,
+        string Hover,
+        string Accent,
+        string TabBar,
+        string TabInactive);
+
     public void Shutdown()
     {
+        _settingsSaveCts?.Cancel();
+        _settingsSaveCts?.Dispose();
+        _settingsSaveCts = null;
+        TrySaveSettingsNow();
+
         foreach (var tab in Tabs)
         {
             tab.CancelPendingLoad();
@@ -241,6 +662,17 @@ public partial class MainViewModel : ObservableObject
 
         await ActiveTab.RefreshAsync();
         GlobalStatus = ActiveTab.StatusMessage;
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        var dialog = new SettingsDialog
+        {
+            Owner = Application.Current.MainWindow,
+            DataContext = this
+        };
+        dialog.ShowDialog();
     }
 
     [RelayCommand]

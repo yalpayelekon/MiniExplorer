@@ -6,14 +6,14 @@
         Width="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
-        Background="{StaticResource Brush.Background}">
+        Background="{DynamicResource Brush.Background}">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Text="Yeni ad:" Foreground="{StaticResource Brush.Foreground}" Margin="0,0,0,8"/>
+        <TextBlock Text="Yeni ad:" Foreground="{DynamicResource Brush.Foreground}" Margin="0,0,0,8"/>
         <TextBox x:Name="NameBox"
                  Grid.Row="1"
                  Height="32"

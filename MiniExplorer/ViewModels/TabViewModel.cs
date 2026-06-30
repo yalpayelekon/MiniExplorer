@@ -68,6 +68,12 @@ public partial class TabViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasFolderAndFileItems;
 
+    [ObservableProperty]
+    private SortField _sortField = SortField.Name;
+
+    [ObservableProperty]
+    private bool _sortAscending = true;
+
     public ObservableCollection<FileSystemEntry> SelectedItems { get; } = [];
 
     public event Action<IReadOnlyList<string>>? SelectionRestoreRequested;
@@ -217,7 +223,7 @@ public partial class TabViewModel : ObservableObject
 
             UsePicturesLayout = PicturesPathHelper.IsUnderPictures(CurrentPath);
 
-            var entries = await _fileSystemService.ListDirectoryAsync(CurrentPath, FilterText, token);
+            var entries = await _fileSystemService.ListDirectoryAsync(CurrentPath, FilterText, token, SortField, SortAscending);
             token.ThrowIfCancellationRequested();
 
             Items.Clear();
@@ -283,6 +289,17 @@ public partial class TabViewModel : ObservableObject
             {
                 IsLoading = false;
             }
+        }
+    }
+
+    public void SetSortOptions(SortField sortField, bool sortAscending)
+    {
+        var changed = SortField != sortField || SortAscending != sortAscending;
+        SortField = sortField;
+        SortAscending = sortAscending;
+        if (changed)
+        {
+            _ = LoadAsync(showLoading: false, restoreSelection: true);
         }
     }
 

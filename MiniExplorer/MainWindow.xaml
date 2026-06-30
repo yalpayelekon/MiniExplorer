@@ -19,25 +19,50 @@
                 <DataTrigger Binding="{Binding IsSectionHeader}" Value="True">
                     <Setter Property="IsEnabled" Value="False"/>
                     <Setter Property="FontWeight" Value="SemiBold"/>
-                    <Setter Property="Foreground" Value="{StaticResource Brush.ForegroundMuted}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource Brush.ForegroundMuted}"/>
                     <Setter Property="Padding" Value="12,10,12,4"/>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
 
         <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Width" Value="38"/>
-            <Setter Property="Height" Value="38"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Width" Value="{Binding DataContext.ToolbarControlSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Height" Value="{Binding DataContext.ToolbarControlSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="FontSize" Value="{Binding DataContext.HeaderFontSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.HeaderButton}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.HeaderForeground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.HeaderBorder}"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Margin" Value="0,0,5,0"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource Brush.HeaderButtonHover}"/>
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
         <Style x:Key="ToolbarTextBoxStyle" TargetType="TextBox">
-            <Setter Property="MinHeight" Value="38"/>
-            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="MinHeight" Value="{Binding DataContext.ToolbarControlSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="FontSize" Value="{Binding DataContext.HeaderFontSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.HeaderInput}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Brush.HeaderForeground}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.HeaderBorder}"/>
             <Setter Property="Padding" Value="10,8"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="ToolbarFilterTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource ToolbarTextBoxStyle}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="2,8,10,8"/>
+        </Style>
+
+        <Style x:Key="ToolbarFilterHostStyle" TargetType="Border">
+            <Setter Property="MinHeight" Value="{Binding DataContext.ToolbarControlSize, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            <Setter Property="Background" Value="{DynamicResource Brush.HeaderInput}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.HeaderBorder}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
         </Style>
     </Window.Resources>
 
@@ -50,14 +75,14 @@
         </Grid.RowDefinitions>
 
         <Border Grid.Row="0"
-                Background="{StaticResource Brush.TabBar}"
-                BorderBrush="{StaticResource Brush.TabInactiveBorder}"
+                Background="{DynamicResource Brush.HeaderBackground}"
+                BorderBrush="{DynamicResource Brush.HeaderBorder}"
                 BorderThickness="0,0,0,1"
-                Padding="8,6,8,0">
+                Padding="{Binding TabBarPadding}">
             <DockPanel LastChildFill="True">
                 <Button DockPanel.Dock="Right"
+                        Style="{StaticResource ToolbarButtonStyle}"
                         Content="+"
-                        Width="32"
                         Margin="8,0,0,6"
                         Command="{Binding NewTabCommand}"
                         ToolTip="Yeni sekme (Ctrl+T)"/>
@@ -73,16 +98,16 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:TabViewModel}">
                                 <Border Margin="0,0,4,0"
-                                        Padding="12,6,8,6"
+                                        Padding="{Binding DataContext.TabItemPadding, RelativeSource={RelativeSource AncestorType=Window}}"
                                         CornerRadius="6,6,0,0"
-                                        BorderBrush="{StaticResource Brush.Border}"
+                                        BorderBrush="{DynamicResource Brush.Border}"
                                         BorderThickness="1,1,1,1"
                                         MouseLeftButtonUp="TabHeader_Click"
                                         Tag="{Binding}">
                                     <Border.Style>
                                         <Style TargetType="Border">
-                                            <Setter Property="Background" Value="{StaticResource Brush.TabInactive}"/>
-                                            <Setter Property="BorderBrush" Value="{StaticResource Brush.TabInactiveBorder}"/>
+                                            <Setter Property="Background" Value="{DynamicResource Brush.TabInactive}"/>
+                                            <Setter Property="BorderBrush" Value="{DynamicResource Brush.TabInactiveBorder}"/>
                                             <Setter Property="BorderThickness" Value="1,1,1,1"/>
                                             <Style.Triggers>
                                                 <DataTrigger Value="True">
@@ -92,8 +117,8 @@
                                                             <Binding Path="DataContext.ActiveTab" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                         </MultiBinding>
                                                     </DataTrigger.Binding>
-                                                    <Setter Property="Background" Value="{StaticResource Brush.TabActive}"/>
-                                                    <Setter Property="BorderBrush" Value="{StaticResource Brush.TabAccent}"/>
+                                                    <Setter Property="Background" Value="{DynamicResource Brush.TabActive}"/>
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource Brush.TabAccent}"/>
                                                     <Setter Property="BorderThickness" Value="1,3,1,0"/>
                                                     <Setter Property="Margin" Value="0,0,4,-1"/>
                                                 </DataTrigger>
@@ -108,7 +133,7 @@
                                                    TextTrimming="CharacterEllipsis">
                                             <TextBlock.Style>
                                                 <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{StaticResource Brush.TabInactiveForeground}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.TabInactiveForeground}"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Value="True">
                                                             <DataTrigger.Binding>
@@ -117,7 +142,7 @@
                                                                     <Binding Path="DataContext.ActiveTab" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                                 </MultiBinding>
                                                             </DataTrigger.Binding>
-                                                            <Setter Property="Foreground" Value="{StaticResource Brush.TabActiveForeground}"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource Brush.TabActiveForeground}"/>
                                                             <Setter Property="FontWeight" Value="SemiBold"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
@@ -125,17 +150,17 @@
                                             </TextBlock.Style>
                                         </TextBlock>
                                         <Button Content="×"
-                                                Width="22"
-                                                Height="22"
+                                                Width="{Binding DataContext.TabChromeButtonSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                Height="{Binding DataContext.TabChromeButtonSize, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 Padding="0"
-                                                FontSize="14"
+                                                FontSize="{Binding DataContext.TabCloseFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
                                                 VerticalAlignment="Center"
                                                 Click="CloseTab_Click"
                                                 Tag="{Binding}"
                                                 ToolTip="Sekmeyi kapat (Ctrl+W)">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                                                    <Setter Property="Foreground" Value="{StaticResource Brush.TabInactiveForeground}"/>
+                                                    <Setter Property="Foreground" Value="{DynamicResource Brush.TabInactiveForeground}"/>
                                                     <Setter Property="Background" Value="Transparent"/>
                                                     <Setter Property="BorderThickness" Value="0"/>
                                                     <Style.Triggers>
@@ -146,7 +171,7 @@
                                                                     <Binding Path="DataContext.ActiveTab" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                                                 </MultiBinding>
                                                             </DataTrigger.Binding>
-                                                            <Setter Property="Foreground" Value="{StaticResource Brush.TabActiveForeground}"/>
+                                                            <Setter Property="Foreground" Value="{DynamicResource Brush.TabActiveForeground}"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -162,10 +187,10 @@
         </Border>
 
         <Border Grid.Row="1"
-                Background="{StaticResource Brush.Surface}"
-                BorderBrush="{StaticResource Brush.Border}"
+                Background="{DynamicResource Brush.HeaderSurface}"
+                BorderBrush="{DynamicResource Brush.HeaderBorder}"
                 BorderThickness="0,0,0,1"
-                Padding="10,7">
+                Padding="{Binding ToolbarPadding}">
             <Grid DataContext="{Binding ActiveTab}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -173,37 +198,81 @@
                     <ColumnDefinition Width="264"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
-                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="←" Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="→" Command="{Binding DataContext.GoForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="↑" Command="{Binding DataContext.GoUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="↻" Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yenile (F5)"/>
-                    <Button Style="{StaticResource ToolbarButtonStyle}" Content="⧉" Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}" ToolTip="Yolu kopyala"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            Content="←"
+                            Visibility="{Binding DataContext.ShowBackButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.GoBackCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            Content="→"
+                            Visibility="{Binding DataContext.ShowForwardButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.GoForwardCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            Content="↑"
+                            Visibility="{Binding DataContext.ShowUpButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.GoUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            Content="↻"
+                            Visibility="{Binding DataContext.ShowRefreshButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="Yenile (F5)"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            Content="⧉"
+                            Visibility="{Binding DataContext.ShowCopyPathButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="Yolu kopyala"/>
                     <Button Style="{StaticResource ToolbarButtonStyle}"
                             FontFamily="Segoe MDL2 Assets"
                             Content="&#xE838;"
+                            Visibility="{Binding DataContext.ShowExplorerButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding DataContext.OpenCurrentPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             ToolTip="Explorer'da aç"/>
+                    <Button Style="{StaticResource ToolbarButtonStyle}"
+                            FontFamily="Segoe MDL2 Assets"
+                            Content="&#xE713;"
+                            Command="{Binding DataContext.OpenSettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            ToolTip="Ayarlar"/>
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          Style="{StaticResource ToolbarTextBoxStyle}"
                          Text="{Binding AddressText, UpdateSourceTrigger=PropertyChanged}"
                          KeyDown="AddressBox_KeyDown"/>
-                <TextBox Grid.Column="2"
-                         Style="{StaticResource ToolbarTextBoxStyle}"
-                         Margin="10,0,0,0"
-                         Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
-                         ToolTip="Mevcut klasörde filtrele"/>
+                <Border Grid.Column="2"
+                        Style="{StaticResource ToolbarFilterHostStyle}"
+                        Margin="10,0,0,0"
+                        ToolTip="Mevcut klasörde filtrele">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Text="&#xE721;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   Foreground="{DynamicResource Brush.HeaderMuted}"
+                                   FontSize="{Binding DataContext.HeaderFontSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                   VerticalAlignment="Center"
+                                   Margin="10,0,6,0"
+                                   IsHitTestVisible="False"/>
+                        <TextBox Grid.Column="1"
+                                 Style="{StaticResource ToolbarFilterTextBoxStyle}"
+                                 Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"/>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="240"/>
+                <ColumnDefinition x:Name="SidebarColumn"
+                                  Width="{Binding SidebarWidthGrid}"
+                                  MinWidth="180"
+                                  MaxWidth="420"/>
+                <ColumnDefinition Width="5"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Background="{StaticResource Brush.Sidebar}"
-                    BorderBrush="{StaticResource Brush.Border}"
+            <Border Background="{DynamicResource Brush.Sidebar}"
+                    BorderBrush="{DynamicResource Brush.Border}"
                     BorderThickness="0,0,1,0">
                 <ListBox x:Name="SidebarList"
                          ItemsSource="{Binding Sidebar.Items}"
@@ -224,10 +293,21 @@
                 </ListBox>
             </Border>
 
+            <GridSplitter Grid.Column="1"
+                          Width="5"
+                          HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent"
+                          Cursor="SizeWE"
+                          ResizeDirection="Columns"
+                          ResizeBehavior="PreviousAndNext"
+                          ShowsPreview="False"
+                          DragCompleted="SidebarSplitter_DragCompleted"/>
+
             <Grid x:Name="FileListPanel"
-                  Grid.Column="1"
+                  Grid.Column="2"
                   DataContext="{Binding ActiveTab}"
-                  Background="{StaticResource Brush.Background}"
+                  Background="{DynamicResource Brush.Background}"
                   PreviewMouseDown="FileListPanel_PreviewMouseDown">
                 <ListView x:Name="FileList"
                           ItemsSource="{Binding Items}"
@@ -242,19 +322,49 @@
                           Visibility="{Binding UsePicturesLayout, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="Ad" Width="320">
+                            <GridViewColumn Width="320">
+                                <GridViewColumn.Header>
+                                    <GridViewColumnHeader x:Name="NameHeader"
+                                                          Content="Ad"
+                                                          Tag="{x:Static models:SortField.Name}"
+                                                          Click="GridViewColumnHeader_Click"/>
+                                </GridViewColumn.Header>
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">
-                                            <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                                            <Image Source="{Binding Icon}"
+                                                   Width="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   Height="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   Margin="0,0,8,0"/>
                                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </GridViewColumn.CellTemplate>
                             </GridViewColumn>
-                            <GridViewColumn Header="Değiştirilme" Width="160" DisplayMemberBinding="{Binding ModifiedDisplay}"/>
-                            <GridViewColumn Header="Tür" Width="160" DisplayMemberBinding="{Binding TypeDisplay}"/>
-                            <GridViewColumn Header="Boyut" Width="100" DisplayMemberBinding="{Binding SizeDisplay}"/>
+                            <GridViewColumn Width="160" DisplayMemberBinding="{Binding ModifiedDisplay}">
+                                <GridViewColumn.Header>
+                                    <GridViewColumnHeader x:Name="ModifiedHeader"
+                                                          Content="Değiştirilme"
+                                                          Tag="{x:Static models:SortField.Modified}"
+                                                          Click="GridViewColumnHeader_Click"/>
+                                </GridViewColumn.Header>
+                            </GridViewColumn>
+                            <GridViewColumn Width="160" DisplayMemberBinding="{Binding TypeDisplay}">
+                                <GridViewColumn.Header>
+                                    <GridViewColumnHeader x:Name="TypeHeader"
+                                                          Content="Tür"
+                                                          Tag="{x:Static models:SortField.Type}"
+                                                          Click="GridViewColumnHeader_Click"/>
+                                </GridViewColumn.Header>
+                            </GridViewColumn>
+                            <GridViewColumn Width="100" DisplayMemberBinding="{Binding SizeDisplay}">
+                                <GridViewColumn.Header>
+                                    <GridViewColumnHeader x:Name="SizeHeader"
+                                                          Content="Boyut"
+                                                          Tag="{x:Static models:SortField.Size}"
+                                                          Click="GridViewColumnHeader_Click"/>
+                                </GridViewColumn.Header>
+                            </GridViewColumn>
                         </GridView>
                     </ListView.View>
                 </ListView>
@@ -277,19 +387,49 @@
                                   Visibility="{Binding HasFolderAndFileItems, Converter={StaticResource BoolToVisibility}}">
                             <ListView.View>
                                 <GridView>
-                                    <GridViewColumn Header="Ad" Width="320">
+                                    <GridViewColumn Width="320">
+                                        <GridViewColumn.Header>
+                                            <GridViewColumnHeader x:Name="PicturesNameHeader"
+                                                                  Content="Ad"
+                                                                  Tag="{x:Static models:SortField.Name}"
+                                                                  Click="GridViewColumnHeader_Click"/>
+                                        </GridViewColumn.Header>
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal">
-                                                    <Image Source="{Binding Icon}" Width="16" Height="16" Margin="0,0,8,0"/>
+                                                    <Image Source="{Binding Icon}"
+                                                           Width="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           Height="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                           Margin="0,0,8,0"/>
                                                     <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>
                                     </GridViewColumn>
-                                    <GridViewColumn Header="Değiştirilme" Width="160" DisplayMemberBinding="{Binding ModifiedDisplay}"/>
-                                    <GridViewColumn Header="Tür" Width="160" DisplayMemberBinding="{Binding TypeDisplay}"/>
-                                    <GridViewColumn Header="Boyut" Width="100" DisplayMemberBinding="{Binding SizeDisplay}"/>
+                                    <GridViewColumn Width="160" DisplayMemberBinding="{Binding ModifiedDisplay}">
+                                        <GridViewColumn.Header>
+                                            <GridViewColumnHeader x:Name="PicturesModifiedHeader"
+                                                                  Content="Değiştirilme"
+                                                                  Tag="{x:Static models:SortField.Modified}"
+                                                                  Click="GridViewColumnHeader_Click"/>
+                                        </GridViewColumn.Header>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="160" DisplayMemberBinding="{Binding TypeDisplay}">
+                                        <GridViewColumn.Header>
+                                            <GridViewColumnHeader x:Name="PicturesTypeHeader"
+                                                                  Content="Tür"
+                                                                  Tag="{x:Static models:SortField.Type}"
+                                                                  Click="GridViewColumnHeader_Click"/>
+                                        </GridViewColumn.Header>
+                                    </GridViewColumn>
+                                    <GridViewColumn Width="100" DisplayMemberBinding="{Binding SizeDisplay}">
+                                        <GridViewColumn.Header>
+                                            <GridViewColumnHeader x:Name="PicturesSizeHeader"
+                                                                  Content="Boyut"
+                                                                  Tag="{x:Static models:SortField.Size}"
+                                                                  Click="GridViewColumnHeader_Click"/>
+                                        </GridViewColumn.Header>
+                                    </GridViewColumn>
                                 </GridView>
                             </ListView.View>
                         </ListView>
@@ -316,25 +456,26 @@
                                 <Style TargetType="ListViewItem">
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                     <Setter Property="Padding" Value="4"/>
-                                    <Setter Property="Width" Value="270"/>
+                                    <Setter Property="Width"
+                                            Value="{Binding DataContext.ThumbnailTileWidth, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                     <Setter Property="Background" Value="Transparent"/>
                                     <Setter Property="BorderThickness" Value="0"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource Brush.Selection}"/>
+                                            <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
                                         </Trigger>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource Brush.Hover}"/>
+                                            <Setter Property="Background" Value="{DynamicResource Brush.Hover}"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate DataType="{x:Type models:FileSystemEntry}">
-                                    <StackPanel Width="252">
-                                        <Border Height="195"
-                                                Background="{StaticResource Brush.Surface}"
-                                                BorderBrush="{StaticResource Brush.Border}"
+                                    <StackPanel Width="{Binding DataContext.ThumbnailContentWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                        <Border Height="{Binding DataContext.ThumbnailImageHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                Background="{DynamicResource Brush.Surface}"
+                                                BorderBrush="{DynamicResource Brush.Border}"
                                                 BorderThickness="1"
                                                 CornerRadius="4"
                                                 Margin="0,0,0,6">
@@ -347,7 +488,7 @@
                                                    TextWrapping="Wrap"
                                                    MaxHeight="54"
                                                    FontSize="12"
-                                                   Foreground="{StaticResource Brush.Foreground}"/>
+                                                   Foreground="{DynamicResource Brush.Foreground}"/>
                                     </StackPanel>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -358,17 +499,18 @@
                 <TextBlock Text="Yükleniyor..."
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           Foreground="{StaticResource Brush.ForegroundMuted}"
+                           Foreground="{DynamicResource Brush.ForegroundMuted}"
                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}"/>
             </Grid>
         </Grid>
 
         <Border Grid.Row="3"
-                Background="{StaticResource Brush.Surface}"
-                BorderBrush="{StaticResource Brush.Border}"
+                Background="{DynamicResource Brush.Surface}"
+                BorderBrush="{DynamicResource Brush.Border}"
                 BorderThickness="0,1,0,0"
                 Padding="12,4">
-            <TextBlock Text="{Binding GlobalStatus}"/>
+            <TextBlock Text="{Binding GlobalStatus}"
+                       Foreground="{DynamicResource Brush.Foreground}"/>
         </Border>
     </Grid>
 </Window>
