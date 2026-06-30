@@ -110,6 +110,9 @@
   <data name="Column_Modified" xml:space="preserve"><value>Değiştirilme</value></data>
   <data name="Column_Type" xml:space="preserve"><value>Tür</value></data>
   <data name="Column_Size" xml:space="preserve"><value>Boyut</value></data>
+  <data name="ViewMode_Label" xml:space="preserve"><value>Görünüm</value></data>
+  <data name="ViewMode_List" xml:space="preserve"><value>Liste</value></data>
+  <data name="ViewMode_Icons" xml:space="preserve"><value>Simge</value></data>
   <data name="Menu_Open" xml:space="preserve"><value>Aç</value></data>
   <data name="Menu_OpenNewTab" xml:space="preserve"><value>Yeni sekmede aç</value></data>
   <data name="Menu_PinQuickAccess" xml:space="preserve"><value>Hızlı erişime sabitle</value></data>

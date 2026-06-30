@@ -11,6 +11,7 @@
         MinHeight="480"
         MinWidth="800"
         PreviewKeyDown="Window_PreviewKeyDown"
+        DpiChanged="Window_DpiChanged"
         Closing="Window_Closing">
     <Window.Resources>
         <Style x:Key="SidebarItemStyle" TargetType="ListBoxItem">
@@ -320,7 +321,7 @@
                           VirtualizingPanel.IsVirtualizing="True"
                           VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True"
-                          Visibility="{Binding UsePicturesLayout, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
+                          Visibility="{Binding DataContext.ViewMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumToVisibility}, ConverterParameter=List}">
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Width="320">
@@ -366,136 +367,178 @@
                                                           Click="GridViewColumnHeader_Click"/>
                                 </GridViewColumn.Header>
                             </GridViewColumn>
+                            <GridViewColumn Width="140">
+                                <GridViewColumn.Header>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=ViewMode_Label}"
+                                                   Foreground="{DynamicResource Brush.ForegroundMuted}"
+                                                   VerticalAlignment="Center"
+                                                   Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="ListViewModeComboBox"
+                                                  MinWidth="88"
+                                                  SelectionChanged="ViewModeComboBox_SelectionChanged"/>
+                                    </StackPanel>
+                                </GridViewColumn.Header>
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate/>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
                         </GridView>
                     </ListView.View>
                 </ListView>
 
-                <ScrollViewer x:Name="PicturesScrollViewer"
-                              VerticalScrollBarVisibility="Auto"
-                              PanningMode="VerticalOnly"
-                              Visibility="{Binding UsePicturesLayout, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel>
-                        <ListView x:Name="FolderAndFileList"
-                                  ItemsSource="{Binding FolderAndFileItems}"
-                                  SelectionMode="Extended"
-                                  MaxHeight="280"
-                                  BorderThickness="0"
-                                  MouseDoubleClick="FileList_MouseDoubleClick"
-                                  PreviewMouseDown="FolderAndFileList_MouseDown"
-                                  PreviewMouseWheel="PicturesChildList_PreviewMouseWheel"
-                                  SelectionChanged="FolderAndFileList_SelectionChanged"
-                                  ContextMenuOpening="FileList_ContextMenuOpening"
-                                  Visibility="{Binding HasFolderAndFileItems, Converter={StaticResource BoolToVisibility}}">
-                            <ListView.View>
-                                <GridView>
-                                    <GridViewColumn Width="320">
-                                        <GridViewColumn.Header>
-                                            <GridViewColumnHeader x:Name="PicturesNameHeader"
-                                                                  Content="Ad"
-                                                                  Tag="{x:Static models:SortField.Name}"
-                                                                  Click="GridViewColumnHeader_Click"/>
-                                        </GridViewColumn.Header>
-                                        <GridViewColumn.CellTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Image Source="{Binding Icon}"
-                                                           Width="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                           Height="{Binding DataContext.ListIconSize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                           Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </GridViewColumn.CellTemplate>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="160" DisplayMemberBinding="{Binding ModifiedDisplay}">
-                                        <GridViewColumn.Header>
-                                            <GridViewColumnHeader x:Name="PicturesModifiedHeader"
-                                                                  Content="Değiştirilme"
-                                                                  Tag="{x:Static models:SortField.Modified}"
-                                                                  Click="GridViewColumnHeader_Click"/>
-                                        </GridViewColumn.Header>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="160" DisplayMemberBinding="{Binding TypeDisplay}">
-                                        <GridViewColumn.Header>
-                                            <GridViewColumnHeader x:Name="PicturesTypeHeader"
-                                                                  Content="Tür"
-                                                                  Tag="{x:Static models:SortField.Type}"
-                                                                  Click="GridViewColumnHeader_Click"/>
-                                        </GridViewColumn.Header>
-                                    </GridViewColumn>
-                                    <GridViewColumn Width="100" DisplayMemberBinding="{Binding SizeDisplay}">
-                                        <GridViewColumn.Header>
-                                            <GridViewColumnHeader x:Name="PicturesSizeHeader"
-                                                                  Content="Boyut"
-                                                                  Tag="{x:Static models:SortField.Size}"
-                                                                  Click="GridViewColumnHeader_Click"/>
-                                        </GridViewColumn.Header>
-                                    </GridViewColumn>
-                                </GridView>
-                            </ListView.View>
-                        </ListView>
+                <DockPanel Visibility="{Binding DataContext.ViewMode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource EnumToVisibility}, ConverterParameter=Icons}">
+                    <Border DockPanel.Dock="Top"
+                            Background="{DynamicResource Brush.Surface}"
+                            BorderBrush="{DynamicResource Brush.Border}"
+                            BorderThickness="0,0,0,1"
+                            Padding="4,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="320"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <GridViewColumnHeader x:Name="IconNameHeader"
+                                                  Grid.Column="0"
+                                                  Content="Ad"
+                                                  Tag="{x:Static models:SortField.Name}"
+                                                  Click="GridViewColumnHeader_Click"
+                                                  HorizontalContentAlignment="Left"/>
+                            <GridViewColumnHeader x:Name="IconModifiedHeader"
+                                                  Grid.Column="1"
+                                                  Content="Değiştirilme"
+                                                  Tag="{x:Static models:SortField.Modified}"
+                                                  Click="GridViewColumnHeader_Click"
+                                                  HorizontalContentAlignment="Left"/>
+                            <GridViewColumnHeader x:Name="IconTypeHeader"
+                                                  Grid.Column="2"
+                                                  Content="Tür"
+                                                  Tag="{x:Static models:SortField.Type}"
+                                                  Click="GridViewColumnHeader_Click"
+                                                  HorizontalContentAlignment="Left"/>
+                            <GridViewColumnHeader x:Name="IconSizeHeader"
+                                                  Grid.Column="3"
+                                                  Content="Boyut"
+                                                  Tag="{x:Static models:SortField.Size}"
+                                                  Click="GridViewColumnHeader_Click"
+                                                  HorizontalContentAlignment="Left"/>
+                            <StackPanel Grid.Column="4"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        HorizontalAlignment="Left"
+                                        Margin="8,0,0,0">
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=ViewMode_Label}"
+                                           Foreground="{DynamicResource Brush.ForegroundMuted}"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,6,0"/>
+                                <ComboBox x:Name="IconViewModeComboBox"
+                                          MinWidth="88"
+                                          SelectionChanged="ViewModeComboBox_SelectionChanged"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-                        <ListView x:Name="ThumbnailList"
-                                  ItemsSource="{Binding ImageItems}"
-                                  SelectionMode="Extended"
-                                  BorderThickness="0"
-                                  Margin="8,4,8,8"
-                                  MouseDoubleClick="FileList_MouseDoubleClick"
-                                  PreviewMouseDown="ThumbnailList_MouseDown"
-                                  PreviewMouseWheel="PicturesChildList_PreviewMouseWheel"
-                                  SelectionChanged="ThumbnailList_SelectionChanged"
-                                  ContextMenuOpening="FileList_ContextMenuOpening"
-                                  ScrollViewer.CanContentScroll="False"
-                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                  ScrollViewer.VerticalScrollBarVisibility="Disabled">
-                            <ListView.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel/>
-                                </ItemsPanelTemplate>
-                            </ListView.ItemsPanel>
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                    <Setter Property="Padding" Value="4"/>
-                                    <Setter Property="Width"
-                                            Value="{Binding DataContext.ThumbnailTileWidth, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Setter Property="BorderThickness" Value="0"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Brush.Selection}"/>
-                                        </Trigger>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource Brush.Hover}"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ListView.ItemContainerStyle>
-                            <ListView.ItemTemplate>
-                                <DataTemplate DataType="{x:Type models:FileSystemEntry}">
-                                    <StackPanel Width="{Binding DataContext.ThumbnailContentWidth, RelativeSource={RelativeSource AncestorType=Window}}">
-                                        <Border Height="{Binding DataContext.ThumbnailImageHeight, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                Background="{DynamicResource Brush.Surface}"
-                                                BorderBrush="{DynamicResource Brush.Border}"
-                                                BorderThickness="1"
-                                                CornerRadius="4"
-                                                Margin="0,0,0,6">
+                    <ListView x:Name="IconFileList"
+                              ItemsSource="{Binding Items}"
+                              SelectionMode="Extended"
+                              BorderThickness="0"
+                              Margin="8,4,8,8"
+                              UseLayoutRounding="True"
+                              SnapsToDevicePixels="True"
+                              MouseDoubleClick="FileList_MouseDoubleClick"
+                              PreviewMouseDown="FileList_MouseDown"
+                              SelectionChanged="FileList_SelectionChanged"
+                              ContextMenuOpening="FileList_ContextMenuOpening"
+                              ScrollViewer.CanContentScroll="False"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling">
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="4"/>
+                                <Setter Property="Width"
+                                        Value="{Binding DataContext.ThumbnailTileWidth, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                <Setter Property="Background" Value="Transparent"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ListViewItem">
+                                            <Border x:Name="Bd"
+                                                    Background="{TemplateBinding Background}"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Hover}"/>
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Selection}"/>
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:FileSystemEntry}">
+                                <StackPanel Width="{Binding DataContext.ThumbnailContentWidth, RelativeSource={RelativeSource AncestorType=Window}}">
+                                    <Border Height="{Binding DataContext.ThumbnailImageHeight, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            Background="{DynamicResource Brush.Surface}"
+                                            BorderBrush="{DynamicResource Brush.Border}"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Margin="0,0,0,6">
+                                        <Grid>
+                                            <TextBlock Text="···"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource Brush.ForegroundMuted}"
+                                                       FontSize="18"
+                                                       Visibility="{Binding IsIconViewImageReady, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"/>
+                                            <Image Source="{Binding TileIconImage}"
+                                                   Stretch="Uniform"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   MaxWidth="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   MaxHeight="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   SnapsToDevicePixels="True"
+                                                   Margin="4"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"/>
                                             <Image Source="{Binding Thumbnail}"
                                                    Stretch="Uniform"
-                                                   Margin="4"/>
-                                        </Border>
-                                        <TextBlock Text="{Binding Name}"
-                                                   TextTrimming="CharacterEllipsis"
-                                                   TextWrapping="Wrap"
-                                                   MaxHeight="54"
-                                                   FontSize="12"
-                                                   Foreground="{DynamicResource Brush.Foreground}"/>
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                    </StackPanel>
-                </ScrollViewer>
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   MaxWidth="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   MaxHeight="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                   SnapsToDevicePixels="True"
+                                                   Margin="4"
+                                                   RenderOptions.BitmapScalingMode="HighQuality"
+                                                   Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVisibility}}"/>
+                                        </Grid>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="Wrap"
+                                               MaxHeight="54"
+                                               FontSize="12"
+                                               Foreground="{DynamicResource Brush.Foreground}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </DockPanel>
 
                 <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Common_Loading}"
                            HorizontalAlignment="Center"

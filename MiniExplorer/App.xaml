@@ -5,6 +5,7 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:EnumToVisibilityConverter x:Key="EnumToVisibility"/>
         <converters:LocConverter x:Key="Loc"/>
 
         <SolidColorBrush x:Key="Brush.Background" Color="#1E1E1E"/>

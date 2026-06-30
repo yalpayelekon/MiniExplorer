@@ -40,10 +40,33 @@ public sealed class ShellService
             @"Programs\Notepad++\notepad++.exe")
     ];
 
-    public ImageSource GetIcon(string path, bool isDirectory)
+    public ImageSource GetIcon(string path, bool isDirectory) => GetListIcon(path, isDirectory);
+
+    public ImageSource GetListIcon(string path, bool isDirectory)
     {
-        var cacheKey = $"{path}|{isDirectory}";
-        return _iconCache.GetOrAdd(cacheKey, _ => LoadIcon(path, isDirectory));
+        var cacheKey = $"list|{path}|{isDirectory}";
+        return _iconCache.GetOrAdd(cacheKey, _ => LoadSmallIcon(path, isDirectory));
+    }
+
+    public ImageSource GetTileIcon(string path, bool isDirectory, double logicalSize = 187)
+    {
+        var dpiScale = DpiHelper.Scale;
+        var physicalSize = Math.Max((int)Math.Ceiling(logicalSize * dpiScale), 32);
+        var dpiKey = BitConverter.DoubleToInt64Bits(dpiScale);
+        var cacheKey = $"tile|{physicalSize}|{dpiKey}|{path}|{isDirectory}";
+        return _iconCache.GetOrAdd(cacheKey, _ =>
+        {
+            var (source, _) = LoadTileIconWithSource(path, isDirectory, physicalSize);
+            return source;
+        });
+    }
+
+    public void InvalidateTileIconCache()
+    {
+        foreach (var key in _iconCache.Keys.Where(key => key.StartsWith("tile|", StringComparison.Ordinal)).ToArray())
+        {
+            _iconCache.TryRemove(key, out _);
+        }
     }
 
     public void OpenDefault(string path)
@@ -363,44 +386,244 @@ public sealed class ShellService
         Clipboard.SetText(string.Join(Environment.NewLine, lines));
     }
 
-    private static ImageSource LoadIcon(string path, bool isDirectory)
+    private static ImageSource LoadSmallIcon(string path, bool isDirectory)
     {
         var info = new NativeMethods.SHFILEINFO();
-        var attributes = isDirectory
-            ? NativeMethods.FILE_ATTRIBUTE_DIRECTORY
-            : NativeMethods.FILE_ATTRIBUTE_NORMAL;
+        var attributes = GetFileAttributes(path, isDirectory);
 
         NativeMethods.SHGetFileInfo(
             path,
             attributes,
             ref info,
             (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
-            NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_SMALLICON | NativeMethods.SHGFI_USEFILEATTRIBUTES);
+            GetShellFileInfoFlags(path, NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_SMALLICON));
 
         if (info.hIcon == IntPtr.Zero)
         {
-            return CreateFallbackIcon();
+            return CreateFallbackIcon(16);
         }
 
+        return DpiHelper.FromHIcon(info.hIcon);
+    }
+
+    private static (ImageSource Source, string Loader) LoadTileIconWithSource(string path, bool isDirectory, int physicalSize)
+    {
+        // Executables commonly contain a 256 px icon that the shell thumbnail
+        // cache may replace with an already-upscaled 32/48 px image. Let the
+        // shell resource extractor select the best embedded frame first.
+        var result = TryLoadEmbeddedExecutableIcon(path, isDirectory, physicalSize);
+        if (result is not null)
+        {
+            return (result, "EmbeddedExecutable");
+        }
+
+        // This is the same general-purpose shell image path used by Explorer.
+        // ICONONLY can select a low-resolution icon-cache entry and upscale it.
+        result = TryLoadShellImage(path, Math.Max(physicalSize, 256));
+        if (result is not null)
+        {
+            return (result, "ShellImage");
+        }
+
+        result = TryLoadJumboIcon(path, isDirectory);
+        if (result is not null)
+        {
+            return (result, "JumboIcon");
+        }
+
+        result = TryLoadLargeHIcon(path, isDirectory);
+        if (result is not null)
+        {
+            return (result, "LargeHIcon");
+        }
+
+        return (LoadSmallIcon(path, isDirectory), "SmallIconFallback");
+    }
+
+    private static ImageSource? TryLoadEmbeddedExecutableIcon(string path, bool isDirectory, int physicalSize)
+    {
+        if (isDirectory || !File.Exists(path))
+        {
+            return null;
+        }
+
+        var extension = Path.GetExtension(path);
+        if (!extension.Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".dll", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".cpl", StringComparison.OrdinalIgnoreCase) &&
+            !extension.Equals(".scr", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        IntPtr largeIcon = IntPtr.Zero;
+        IntPtr smallIcon = IntPtr.Zero;
         try
         {
-            return Imaging.CreateBitmapSourceFromHIcon(
-                info.hIcon,
-                Int32Rect.Empty,
-                BitmapSizeOptions.FromEmptyOptions());
+            // Prefer the PNG-backed 256 px frame commonly embedded in modern
+            // executables, then let WPF downsample it to the requested display
+            // size. Asking for 48/64 px can make the extractor upscale a 32 px
+            // legacy frame even when a clean 256 px frame is available.
+            var requestedSize = (uint)Math.Clamp(Math.Max(physicalSize, 256), 16, ushort.MaxValue);
+            var hr = NativeMethods.SHDefExtractIcon(
+                path,
+                0,
+                0,
+                out largeIcon,
+                out smallIcon,
+                requestedSize);
+            if (hr != 0 || largeIcon == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            var result = DpiHelper.FromHIcon(largeIcon);
+            largeIcon = IntPtr.Zero;
+            return result;
+        }
+        catch
+        {
+            return null;
         }
         finally
         {
-            NativeMethods.DestroyIcon(info.hIcon);
+            if (largeIcon != IntPtr.Zero)
+            {
+                NativeMethods.DestroyIcon(largeIcon);
+            }
+
+            if (smallIcon != IntPtr.Zero)
+            {
+                NativeMethods.DestroyIcon(smallIcon);
+            }
         }
     }
 
-    private static ImageSource CreateFallbackIcon()
+    private static ImageSource? TryLoadLargeHIcon(string path, bool isDirectory)
+    {
+        var info = new NativeMethods.SHFILEINFO();
+        var attributes = GetFileAttributes(path, isDirectory);
+
+        NativeMethods.SHGetFileInfo(
+            path,
+            attributes,
+            ref info,
+            (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+            GetShellFileInfoFlags(path, NativeMethods.SHGFI_ICON));
+
+        if (info.hIcon == IntPtr.Zero)
+        {
+            return null;
+        }
+
+        return DpiHelper.FromHIcon(info.hIcon);
+    }
+
+    private static ImageSource? TryLoadJumboIcon(string path, bool isDirectory)
+    {
+        NativeMethods.IImageList? imageList = null;
+        try
+        {
+            var info = new NativeMethods.SHFILEINFO();
+            var attributes = GetFileAttributes(path, isDirectory);
+
+            NativeMethods.SHGetFileInfo(
+                path,
+                attributes,
+                ref info,
+                (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
+                GetShellFileInfoFlags(path, NativeMethods.SHGFI_SYSICONINDEX));
+
+            if (info.iIcon < 0)
+            {
+                return null;
+            }
+
+            var imageListGuid = NativeMethods.ImageListGuid;
+            var hr = NativeMethods.SHGetImageList(NativeMethods.SHIL_JUMBO, ref imageListGuid, out imageList);
+            if (hr != 0 || imageList is null)
+            {
+                return null;
+            }
+
+            hr = imageList.GetIcon(info.iIcon, NativeMethods.ILD_TRANSPARENT, out var hIcon);
+            if (hr != 0 || hIcon == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            return DpiHelper.FromHIcon(hIcon);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            ReleaseComObject(imageList);
+        }
+    }
+
+    private static ImageSource? TryLoadShellImage(string path, int size)
+    {
+        NativeMethods.IShellItemImageFactory? factory = null;
+        try
+        {
+            var hr = NativeMethods.SHCreateItemFromParsingName(
+                path,
+                IntPtr.Zero,
+                typeof(NativeMethods.IShellItemImageFactory).GUID,
+                out factory);
+
+            if (hr != 0 || factory is null)
+            {
+                return null;
+            }
+
+            var shellSize = new NativeMethods.SIZE { cx = size, cy = size };
+            var flags = NativeMethods.SIIGBF_RESIZETOFIT | NativeMethods.SIIGBF_BIGGERSIZEOK;
+
+            hr = factory.GetImage(shellSize, flags, out var hBitmap);
+            if (hr != 0 || hBitmap == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            return DpiHelper.FromHBitmap(hBitmap);
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            ReleaseComObject(factory);
+        }
+    }
+
+    private static void ReleaseComObject(object? value)
+    {
+        if (value is not null && Marshal.IsComObject(value))
+        {
+            Marshal.ReleaseComObject(value);
+        }
+    }
+
+    private static bool PathExists(string path) =>
+        File.Exists(path) || Directory.Exists(path);
+
+    private static uint GetFileAttributes(string path, bool isDirectory) =>
+        isDirectory ? NativeMethods.FILE_ATTRIBUTE_DIRECTORY : NativeMethods.FILE_ATTRIBUTE_NORMAL;
+
+    private static uint GetShellFileInfoFlags(string path, uint baseFlags) =>
+        PathExists(path) ? baseFlags : baseFlags | NativeMethods.SHGFI_USEFILEATTRIBUTES;
+
+    private static ImageSource CreateFallbackIcon(int size = 16)
     {
         return new DrawingImage(new GeometryDrawing(
             Brushes.DimGray,
             null,
-            new RectangleGeometry(new Rect(0, 0, 16, 16))));
+            new RectangleGeometry(new Rect(0, 0, size, size))));
     }
 
     private static string? ExtractExecutable(string command)

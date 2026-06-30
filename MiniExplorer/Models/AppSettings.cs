@@ -45,6 +45,12 @@ public enum LanguagePreset
     English
 }
 
+public enum ViewMode
+{
+    List,
+    Icons
+}
+
 public sealed class AppSettings
 {
     public LanguagePreset Language { get; set; } = LanguagePreset.Turkish;
@@ -61,4 +67,5 @@ public sealed class AppSettings
     public double SidebarWidth { get; set; } = 240;
     public SortField SortField { get; set; } = SortField.Name;
     public bool SortAscending { get; set; } = true;
+    public ViewMode ViewMode { get; set; } = ViewMode.List;
 }

@@ -4,33 +4,34 @@ namespace MiniExplorer.Helpers;
 
 public static class PicturesPathHelper
 {
+    private static readonly Lazy<string?> PicturesRootLazy = new(ResolvePicturesRoot);
+
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".heic", ".heif"
     };
 
-    public static string? PicturesRoot
+    public static string? PicturesRoot => PicturesRootLazy.Value;
+
+    private static string? ResolvePicturesRoot()
     {
-        get
+        var known = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+        if (Directory.Exists(known))
         {
-            var known = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-            if (Directory.Exists(known))
-            {
-                return known;
-            }
-
-            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            foreach (var name in new[] { "Resimler", "Pictures" })
-            {
-                var path = Path.Combine(profile, name);
-                if (Directory.Exists(path))
-                {
-                    return path;
-                }
-            }
-
-            return null;
+            return known;
         }
+
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        foreach (var name in new[] { "Resimler", "Pictures" })
+        {
+            var path = Path.Combine(profile, name);
+            if (Directory.Exists(path))
+            {
+                return path;
+            }
+        }
+
+        return null;
     }
 
     public static bool IsUnderPictures(string path)

@@ -110,6 +110,9 @@
   <data name="Column_Modified" xml:space="preserve"><value>Date modified</value></data>
   <data name="Column_Type" xml:space="preserve"><value>Type</value></data>
   <data name="Column_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="ViewMode_Label" xml:space="preserve"><value>View</value></data>
+  <data name="ViewMode_List" xml:space="preserve"><value>List</value></data>
+  <data name="ViewMode_Icons" xml:space="preserve"><value>Icons</value></data>
   <data name="Menu_Open" xml:space="preserve"><value>Open</value></data>
   <data name="Menu_OpenNewTab" xml:space="preserve"><value>Open in new tab</value></data>
   <data name="Menu_PinQuickAccess" xml:space="preserve"><value>Pin to Quick access</value></data>

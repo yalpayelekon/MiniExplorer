@@ -16,6 +16,7 @@ public partial class MainWindow : Window
 {
     private MainViewModel ViewModel => (MainViewModel)DataContext;
     private bool _syncingSelection;
+    private bool _syncingViewModeCombo;
 
     public MainWindow()
     {
@@ -34,10 +35,77 @@ public partial class MainWindow : Window
             {
                 UpdateSortHeaders();
             }
+
+            if (e.PropertyName == nameof(MainViewModel.ViewMode))
+            {
+                SyncViewModeComboBoxes();
+            }
         };
+        InitializeViewModeComboBoxes();
         UpdateSortHeaders();
-        LocalizationService.Instance.LanguageChanged += (_, _) => UpdateSortHeaders();
+        LocalizationService.Instance.LanguageChanged += (_, _) =>
+        {
+            UpdateSortHeaders();
+            InitializeViewModeComboBoxes();
+        };
         SetupFileListDragDrop();
+    }
+
+    private void InitializeViewModeComboBoxes()
+    {
+        PopulateViewModeComboBox(ListViewModeComboBox);
+        PopulateViewModeComboBox(IconViewModeComboBox);
+        SyncViewModeComboBoxes();
+    }
+
+    private void PopulateViewModeComboBox(ComboBox comboBox)
+    {
+        comboBox.Items.Clear();
+        comboBox.Items.Add(CreateViewModeItem(ViewMode.List, "ViewMode_List"));
+        comboBox.Items.Add(CreateViewModeItem(ViewMode.Icons, "ViewMode_Icons"));
+        comboBox.DisplayMemberPath = nameof(ViewModeListItem.Label);
+    }
+
+    private static ViewModeListItem CreateViewModeItem(ViewMode mode, string labelKey) =>
+        new(mode, LocalizationService.Get(labelKey));
+
+    private void SyncViewModeComboBoxes()
+    {
+        _syncingViewModeCombo = true;
+        try
+        {
+            SelectViewModeComboBox(ListViewModeComboBox, ViewModel.ViewMode);
+            SelectViewModeComboBox(IconViewModeComboBox, ViewModel.ViewMode);
+        }
+        finally
+        {
+            _syncingViewModeCombo = false;
+        }
+    }
+
+    private static void SelectViewModeComboBox(ComboBox comboBox, ViewMode viewMode)
+    {
+        foreach (var item in comboBox.Items.OfType<ViewModeListItem>())
+        {
+            if (item.Mode == viewMode)
+            {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private void ViewModeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_syncingViewModeCombo || sender is not ComboBox comboBox)
+        {
+            return;
+        }
+
+        if (comboBox.SelectedItem is ViewModeListItem item && ViewModel.ViewMode != item.Mode)
+        {
+            ViewModel.ViewMode = item.Mode;
+        }
     }
 
     private void SetupFileListDragDrop()
@@ -55,14 +123,21 @@ public partial class MainWindow : Window
         }
 
         Attach(FileList);
-        Attach(FolderAndFileList);
-        Attach(ThumbnailList);
+        Attach(IconFileList);
     }
+
+    private ListView GetActiveFileList() =>
+        ViewModel.ViewMode == ViewMode.Icons ? IconFileList : FileList;
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         ViewModel.SaveSession();
         ViewModel.Shutdown();
+    }
+
+    private void Window_DpiChanged(object sender, DpiChangedEventArgs e)
+    {
+        ViewModel.HandleDpiChanged();
     }
 
     private void RestoreSelection(IReadOnlyList<string> paths)
@@ -72,16 +147,7 @@ public partial class MainWindow : Window
         try
         {
             ClearAllListSelections();
-
-            if (ViewModel.ActiveTab?.UsePicturesLayout == true)
-            {
-                SelectMatchingItems(FolderAndFileList, pathSet);
-                SelectMatchingItems(ThumbnailList, pathSet);
-            }
-            else
-            {
-                SelectMatchingItems(FileList, pathSet);
-            }
+            SelectMatchingItems(GetActiveFileList(), pathSet);
         }
         finally
         {
@@ -116,10 +182,10 @@ public partial class MainWindow : Window
         UpdateSortHeader(ModifiedHeader, SortField.Modified, "Column_Modified");
         UpdateSortHeader(TypeHeader, SortField.Type, "Column_Type");
         UpdateSortHeader(SizeHeader, SortField.Size, "Column_Size");
-        UpdateSortHeader(PicturesNameHeader, SortField.Name, "Column_Name");
-        UpdateSortHeader(PicturesModifiedHeader, SortField.Modified, "Column_Modified");
-        UpdateSortHeader(PicturesTypeHeader, SortField.Type, "Column_Type");
-        UpdateSortHeader(PicturesSizeHeader, SortField.Size, "Column_Size");
+        UpdateSortHeader(IconNameHeader, SortField.Name, "Column_Name");
+        UpdateSortHeader(IconModifiedHeader, SortField.Modified, "Column_Modified");
+        UpdateSortHeader(IconTypeHeader, SortField.Type, "Column_Type");
+        UpdateSortHeader(IconSizeHeader, SortField.Size, "Column_Size");
     }
 
     private void UpdateSortHeader(GridViewColumnHeader header, SortField field, string labelKey)
@@ -189,18 +255,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SelectAllInActiveLists()
-    {
-        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
-        {
-            FolderAndFileList.SelectAll();
-            ThumbnailList.SelectAll();
-            UpdateCombinedSelection();
-            return;
-        }
-
-        FileList.SelectAll();
-    }
+    private void SelectAllInActiveLists() => GetActiveFileList().SelectAll();
 
     private void TabHeader_Click(object sender, MouseButtonEventArgs e)
     {
@@ -240,17 +295,8 @@ public partial class MainWindow : Window
 
     private bool IsClickOnAnyListItem(MouseButtonEventArgs e)
     {
-        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
-        {
-            if (GetListViewItemUnderMouse(FolderAndFileList, e.GetPosition(FolderAndFileList)) is not null)
-            {
-                return true;
-            }
-
-            return GetListViewItemUnderMouse(ThumbnailList, e.GetPosition(ThumbnailList)) is not null;
-        }
-
-        return GetListViewItemUnderMouse(FileList, e.GetPosition(FileList)) is not null;
+        var listView = GetActiveFileList();
+        return GetListViewItemUnderMouse(listView, e.GetPosition(listView)) is not null;
     }
 
     private void FileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -260,35 +306,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var selected = FileList.SelectedItems.Cast<FileSystemEntry>().ToList();
-        ViewModel.OnSelectionChanged(selected);
-    }
-
-    private void FolderAndFileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_syncingSelection)
-        {
-            return;
-        }
-
-        UpdateCombinedSelection();
-    }
-
-    private void ThumbnailList_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_syncingSelection)
-        {
-            return;
-        }
-
-        UpdateCombinedSelection();
-    }
-
-    private void UpdateCombinedSelection()
-    {
-        var selected = FolderAndFileList.SelectedItems.Cast<FileSystemEntry>()
-            .Concat(ThumbnailList.SelectedItems.Cast<FileSystemEntry>())
-            .ToList();
+        var selected = GetActiveFileList().SelectedItems.Cast<FileSystemEntry>().ToList();
         ViewModel.OnSelectionChanged(selected);
     }
 
@@ -301,53 +319,9 @@ public partial class MainWindow : Window
     }
 
     private void FileList_MouseDown(object sender, MouseButtonEventArgs e) =>
-        HandleListMouseDown(FileList, e, clearOtherOnSelect: false);
+        HandleListMouseDown(GetActiveFileList(), e);
 
-    private void FolderAndFileList_MouseDown(object sender, MouseButtonEventArgs e) =>
-        HandleListMouseDown(FolderAndFileList, e, clearOtherOnSelect: true, otherList: ThumbnailList);
-
-    private void ThumbnailList_MouseDown(object sender, MouseButtonEventArgs e) =>
-        HandleListMouseDown(ThumbnailList, e, clearOtherOnSelect: true, otherList: FolderAndFileList);
-
-    private void PicturesChildList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        if (sender is not ListView listView)
-        {
-            return;
-        }
-
-        if (listView == ThumbnailList)
-        {
-            e.Handled = true;
-            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
-            return;
-        }
-
-        if (listView != FolderAndFileList || FolderAndFileList.MaxHeight == double.PositiveInfinity)
-        {
-            return;
-        }
-
-        var innerScrollViewer = FindVisualChild<ScrollViewer>(FolderAndFileList);
-        if (innerScrollViewer is null)
-        {
-            return;
-        }
-
-        var nextOffset = innerScrollViewer.VerticalOffset - e.Delta;
-        if (nextOffset < 0)
-        {
-            e.Handled = true;
-            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
-        }
-        else if (nextOffset > innerScrollViewer.ScrollableHeight)
-        {
-            e.Handled = true;
-            PicturesScrollViewer.ScrollToVerticalOffset(PicturesScrollViewer.VerticalOffset - e.Delta);
-        }
-    }
-
-    private void HandleListMouseDown(ListView listView, MouseButtonEventArgs e, bool clearOtherOnSelect, ListView? otherList = null)
+    private void HandleListMouseDown(ListView listView, MouseButtonEventArgs e)
     {
         var itemUnderMouse = GetListViewItemUnderMouse(listView, e.GetPosition(listView));
 
@@ -383,20 +357,6 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.ChangedButton == MouseButton.Left &&
-            clearOtherOnSelect &&
-            otherList is not null &&
-            itemUnderMouse is not null &&
-            Keyboard.Modifiers == ModifierKeys.None)
-        {
-            if (otherList.SelectedItems.Count > 0)
-            {
-                _syncingSelection = true;
-                otherList.SelectedItems.Clear();
-                _syncingSelection = false;
-            }
-        }
-
         if (e.ChangedButton == MouseButton.Middle &&
             itemUnderMouse?.Content is FileSystemEntry entry &&
             entry.IsDirectory)
@@ -406,29 +366,18 @@ public partial class MainWindow : Window
         }
     }
 
-    private IEnumerable<FileSystemEntry> GetAllSelectedEntries()
-    {
-        if (ViewModel.ActiveTab?.UsePicturesLayout == true)
-        {
-            return FolderAndFileList.SelectedItems.Cast<FileSystemEntry>()
-                .Concat(ThumbnailList.SelectedItems.Cast<FileSystemEntry>());
-        }
-
-        return FileList.SelectedItems.Cast<FileSystemEntry>();
-    }
+    private IEnumerable<FileSystemEntry> GetAllSelectedEntries() =>
+        GetActiveFileList().SelectedItems.Cast<FileSystemEntry>();
 
     private void ClearAllListSelections()
     {
         FileList.SelectedItems.Clear();
-        FolderAndFileList.SelectedItems.Clear();
-        ThumbnailList.SelectedItems.Clear();
+        IconFileList.SelectedItems.Clear();
     }
 
     private void ClearFileSelection()
     {
-        if (FileList.SelectedItems.Count == 0 &&
-            FolderAndFileList.SelectedItems.Count == 0 &&
-            ThumbnailList.SelectedItems.Count == 0)
+        if (FileList.SelectedItems.Count == 0 && IconFileList.SelectedItems.Count == 0)
         {
             return;
         }
@@ -484,7 +433,7 @@ public partial class MainWindow : Window
     private void FileList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
     {
         var selected = GetAllSelectedEntries().ToList();
-        var targetList = sender as ListView ?? FileList;
+        var targetList = sender as ListView ?? GetActiveFileList();
 
         if (selected.Count == 0)
         {
@@ -681,7 +630,7 @@ public partial class MainWindow : Window
     {
         while (source is not null)
         {
-            if (source is Button or TextBox or ScrollBar or Thumb or RepeatButton or GridViewColumnHeader)
+            if (source is Button or TextBox or ScrollBar or Thumb or RepeatButton or GridViewColumnHeader or ComboBox)
             {
                 return true;
             }
@@ -708,23 +657,5 @@ public partial class MainWindow : Window
         return element as ListViewItem;
     }
 
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is T match)
-            {
-                return match;
-            }
-
-            var descendant = FindVisualChild<T>(child);
-            if (descendant is not null)
-            {
-                return descendant;
-            }
-        }
-
-        return null;
-    }
+    private sealed record ViewModeListItem(ViewMode Mode, string Label);
 }

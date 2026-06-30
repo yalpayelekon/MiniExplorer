@@ -14,7 +14,8 @@ namespace MiniExplorer.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private readonly FileSystemService _fileSystemService = new();
+    private readonly DirectoryCacheService _directoryCacheService = new();
+    private readonly FileSystemService _fileSystemService;
     private readonly QuickAccessService _quickAccessService = new();
     private readonly ShellService _shellService = new();
     private readonly ClipboardService _clipboardService = new();
@@ -27,6 +28,7 @@ public partial class MainViewModel : ObservableObject
 
     public MainViewModel()
     {
+        _fileSystemService = new FileSystemService(_directoryCacheService);
         Sidebar = new SidebarViewModel(_quickAccessService, _fileSystemService);
         Tabs = new ObservableCollection<TabViewModel>();
         LoadSettings();
@@ -91,6 +93,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _sortAscending = true;
 
+    [ObservableProperty]
+    private ViewMode _viewMode = ViewMode.List;
+
+    private bool _suppressViewModeChange;
     private TabViewModel? _subscribedTab;
 
     public GridLength SidebarWidthGrid => new(Math.Clamp(SidebarWidth, 180, 420));
@@ -104,19 +110,28 @@ public partial class MainViewModel : ObservableObject
 
     public double ThumbnailTileWidth => IconSize switch
     {
-        IconSizePreset.Small => 220,
-        IconSizePreset.Large => 320,
-        _ => 270
+        IconSizePreset.Small => 136,
+        IconSizePreset.Large => 216,
+        _ => 176
     };
 
     public double ThumbnailContentWidth => ThumbnailTileWidth - 18;
 
     public double ThumbnailImageHeight => IconSize switch
     {
-        IconSizePreset.Small => 150,
-        IconSizePreset.Large => 230,
-        _ => 195
+        IconSizePreset.Small => 88,
+        IconSizePreset.Large => 152,
+        _ => 120
     };
+
+    public double TileIconLogicalSize => IconSize switch
+    {
+        IconSizePreset.Small => 64,
+        IconSizePreset.Large => 128,
+        _ => 96
+    };
+
+    public double TileIconDisplaySize => TileIconLogicalSize;
 
     public double ToolbarControlSize => HeaderDensity switch
     {
@@ -247,7 +262,23 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ThumbnailTileWidth));
         OnPropertyChanged(nameof(ThumbnailContentWidth));
         OnPropertyChanged(nameof(ThumbnailImageHeight));
+        OnPropertyChanged(nameof(TileIconLogicalSize));
+        OnPropertyChanged(nameof(TileIconDisplaySize));
+        _shellService.InvalidateTileIconCache();
+        foreach (var tab in Tabs)
+        {
+            tab.SetTileIconLogicalSize(TileIconLogicalSize);
+        }
         ScheduleSettingsSave();
+    }
+
+    internal void HandleDpiChanged()
+    {
+        _shellService.InvalidateTileIconCache();
+        foreach (var tab in Tabs)
+        {
+            tab.ReloadTileIconsForDpiChange();
+        }
     }
 
     partial void OnSidebarWidthChanged(double value)
@@ -275,6 +306,17 @@ public partial class MainViewModel : ObservableObject
         }
 
         ApplySortToTabs(refreshActive: true);
+        ScheduleSettingsSave();
+    }
+
+    partial void OnViewModeChanged(ViewMode value)
+    {
+        if (_suppressViewModeChange)
+        {
+            return;
+        }
+
+        ApplyViewModeToTabs(refreshActive: true);
         ScheduleSettingsSave();
     }
 
@@ -321,8 +363,10 @@ public partial class MainViewModel : ObservableObject
 
     private void AddTab(string tabPath, bool activate = true)
     {
-        var tab = new TabViewModel(_fileSystemService, _shellService, _thumbnailService, tabPath);
+        var tab = new TabViewModel(_fileSystemService, _shellService, _thumbnailService, _directoryCacheService, tabPath);
         tab.SetSortOptions(SortField, SortAscending);
+        tab.ViewMode = ViewMode;
+        tab.SetTileIconLogicalSize(TileIconLogicalSize);
         tab.SelectionRestoreRequested += paths =>
         {
             if (ReferenceEquals(ActiveTab, tab))
@@ -391,6 +435,7 @@ public partial class MainViewModel : ObservableObject
     {
         var settings = _settingsService.Load();
         _suppressLanguageChange = true;
+        _suppressViewModeChange = true;
         try
         {
             Language = settings.Language;
@@ -407,14 +452,17 @@ public partial class MainViewModel : ObservableObject
             SidebarWidth = Math.Clamp(settings.SidebarWidth, 180, 420);
             SortField = settings.SortField;
             SortAscending = settings.SortAscending;
+            ViewMode = settings.ViewMode;
         }
         finally
         {
             _suppressLanguageChange = false;
+            _suppressViewModeChange = false;
         }
 
         ApplyLanguage();
         ApplyTheme(Theme);
+        ApplyViewModeToTabs(refreshActive: false);
     }
 
     private void ApplySortToTabs(bool refreshActive)
@@ -430,6 +478,19 @@ public partial class MainViewModel : ObservableObject
             {
                 tab.SetSortOptions(SortField, SortAscending);
             }
+        }
+    }
+
+    private void ApplyViewModeToTabs(bool refreshActive)
+    {
+        foreach (var tab in Tabs)
+        {
+            tab.ViewMode = ViewMode;
+        }
+
+        if (refreshActive && ActiveTab is not null)
+        {
+            _ = ActiveTab.OnViewModeChangedAsync();
         }
     }
 
@@ -474,7 +535,8 @@ public partial class MainViewModel : ObservableObject
                 ShowExplorerButton = ShowExplorerButton,
                 SidebarWidth = Math.Clamp(SidebarWidth, 180, 420),
                 SortField = SortField,
-                SortAscending = SortAscending
+                SortAscending = SortAscending,
+                ViewMode = ViewMode
             });
         }
         catch

@@ -13,9 +13,44 @@ public sealed class FileSystemEntry : INotifyPropertyChanged
     public long? Size { get; init; }
     public DateTime? Modified { get; init; }
     public string Extension { get; init; } = string.Empty;
-    public ImageSource? Icon { get; set; }
+    public ImageSource? Icon
+    {
+        get => _icon;
+        set
+        {
+            if (!ReferenceEquals(_icon, value))
+            {
+                _icon = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TileImage));
+                OnPropertyChanged(nameof(IconViewImage));
+                OnPropertyChanged(nameof(TileIconImage));
+                OnPropertyChanged(nameof(IsIconViewImageReady));
+            }
+        }
+    }
 
+    private ImageSource? _icon;
+    private ImageSource? _tileIcon;
     private ImageSource? _thumbnail;
+
+    public ImageSource? TileIcon
+    {
+        get => _tileIcon;
+        set
+        {
+            if (!ReferenceEquals(_tileIcon, value))
+            {
+                _tileIcon = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(TileImage));
+                OnPropertyChanged(nameof(IconViewImage));
+                OnPropertyChanged(nameof(TileIconImage));
+                OnPropertyChanged(nameof(IsIconViewImageReady));
+            }
+        }
+    }
+
     public ImageSource? Thumbnail
     {
         get => _thumbnail;
@@ -25,9 +60,23 @@ public sealed class FileSystemEntry : INotifyPropertyChanged
             {
                 _thumbnail = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(TileImage));
+                OnPropertyChanged(nameof(IconViewImage));
+                OnPropertyChanged(nameof(HasThumbnail));
+                OnPropertyChanged(nameof(IsIconViewImageReady));
             }
         }
     }
+
+    public ImageSource? TileImage => Thumbnail ?? TileIcon ?? Icon;
+
+    public ImageSource? IconViewImage => Thumbnail ?? TileIcon ?? Icon;
+
+    public ImageSource? TileIconImage => TileIcon ?? Icon;
+
+    public bool HasThumbnail => Thumbnail is not null;
+
+    public bool IsIconViewImageReady => IconViewImage is not null;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -49,6 +98,19 @@ public sealed class FileSystemEntry : INotifyPropertyChanged
     public string SizeDisplay => IsDirectory || Size is null ? string.Empty : FormatSize(Size.Value);
 
     public string ModifiedDisplay => Modified?.ToString("g") ?? string.Empty;
+
+    public FileSystemEntry ClonePreservingVisuals() => new()
+    {
+        FullPath = FullPath,
+        Name = Name,
+        IsDirectory = IsDirectory,
+        Size = Size,
+        Modified = Modified,
+        Extension = Extension,
+        Icon = Icon,
+        TileIcon = TileIcon,
+        Thumbnail = Thumbnail
+    };
 
     private static string FormatSize(long bytes)
     {

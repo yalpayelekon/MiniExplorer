@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using System.IO;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -10,18 +10,29 @@ namespace MiniExplorer.Services;
 public sealed class ThumbnailService
 {
     private const int DefaultThumbnailSize = 300;
-    private const int MaxCacheEntries = 500;
+    private const long MaxCacheBytes = 192L * 1024 * 1024;
+    private const int MaxConcurrency = 6;
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
+    private const int MaxRetries = 3;
 
-    private readonly SemaphoreSlim _loadSemaphore = new(6, 6);
-    private readonly ConcurrentDictionary<string, ImageSource> _cache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly LinkedList<string> _cacheOrder = new();
+    private readonly SemaphoreSlim _loadSemaphore = new(MaxConcurrency, MaxConcurrency);
+    private readonly Dictionary<CacheKey, CacheEntry> _cache = new();
+    private readonly LinkedList<CacheKey> _lru = new();
     private readonly object _cacheLock = new();
+    private long _cacheBytes;
 
-    public async Task<ImageSource?> GetThumbnailAsync(string path, CancellationToken cancellationToken, int size = DefaultThumbnailSize)
+    public async Task<ImageSource?> GetThumbnailAsync(
+        string path,
+        CancellationToken cancellationToken,
+        int size = DefaultThumbnailSize,
+        bool retryIfMissing = false)
     {
-        if (_cache.TryGetValue(path, out var cached))
+        var physicalSize = GetPhysicalThumbnailSize(size);
+        var key = new CacheKey(NormalizePath(path), physicalSize);
+        var signature = TryGetFileSignature(path);
+
+        if (TryGetValidCached(key, signature, out var cached))
         {
-            TouchCache(path);
             return cached;
         }
 
@@ -29,20 +40,39 @@ public sealed class ThumbnailService
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
+            signature = TryGetFileSignature(path);
 
-            if (_cache.TryGetValue(path, out cached))
+            if (TryGetValidCached(key, signature, out cached))
             {
-                TouchCache(path);
                 return cached;
             }
 
-            var thumbnail = await Task.Run(() => LoadThumbnail(path, size), cancellationToken);
-            if (thumbnail is not null)
+            var attempts = retryIfMissing ? MaxRetries : 1;
+            for (var attempt = 0; attempt < attempts; attempt++)
             {
-                AddToCache(path, thumbnail);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var thumbnail = await Task.Run(() => LoadThumbnail(path, physicalSize), cancellationToken);
+                if (thumbnail is not null)
+                {
+                    signature = TryGetFileSignature(path);
+                    if (signature is not null)
+                    {
+                        AddToCache(key, thumbnail, signature.Value);
+                    }
+
+                    return thumbnail;
+                }
+
+                if (!retryIfMissing || attempt == attempts - 1)
+                {
+                    break;
+                }
+
+                await Task.Delay(RetryDelay, cancellationToken);
             }
 
-            return thumbnail;
+            return null;
         }
         finally
         {
@@ -52,15 +82,111 @@ public sealed class ThumbnailService
 
     public void Invalidate(IEnumerable<string> paths)
     {
+        var normalizedPaths = paths
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .Select(NormalizePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         lock (_cacheLock)
         {
-            foreach (var path in paths)
+            foreach (var key in _cache.Keys.Where(key => normalizedPaths.Contains(key.Path)).ToList())
             {
-                _cache.Remove(path, out _);
-                _cacheOrder.Remove(path);
+                RemoveEntry(key);
             }
         }
     }
+
+    private bool TryGetValidCached(CacheKey key, FileSignature? signature, out ImageSource? image)
+    {
+        image = null;
+        if (signature is null)
+        {
+            lock (_cacheLock)
+            {
+                RemoveEntry(key);
+            }
+
+            return false;
+        }
+
+        lock (_cacheLock)
+        {
+            if (!_cache.TryGetValue(key, out var entry) || entry.Signature != signature.Value)
+            {
+                if (entry is not null)
+                {
+                    RemoveEntry(key);
+                }
+
+                return false;
+            }
+
+            _lru.Remove(entry.Node);
+            _lru.AddLast(entry.Node);
+            image = entry.Image;
+            return true;
+        }
+    }
+
+    private void AddToCache(CacheKey key, ImageSource image, FileSignature signature)
+    {
+        var estimatedBytes = EstimateBytes(image);
+        lock (_cacheLock)
+        {
+            RemoveEntry(key);
+
+            var node = _lru.AddLast(key);
+            _cache[key] = new CacheEntry(image, signature, estimatedBytes, node);
+            _cacheBytes += estimatedBytes;
+
+            while (_cacheBytes > MaxCacheBytes && _lru.First is { } oldest)
+            {
+                RemoveEntry(oldest.Value);
+            }
+        }
+    }
+
+    private void RemoveEntry(CacheKey key)
+    {
+        if (_cache.Remove(key, out var entry))
+        {
+            _cacheBytes -= entry.EstimatedBytes;
+            _lru.Remove(entry.Node);
+        }
+    }
+
+    private static long EstimateBytes(ImageSource image) =>
+        image is BitmapSource bitmap
+            ? Math.Max(1L, (long)bitmap.PixelWidth * bitmap.PixelHeight * 4)
+            : (long)DefaultThumbnailSize * DefaultThumbnailSize * 4;
+
+    private static FileSignature? TryGetFileSignature(string path)
+    {
+        try
+        {
+            var file = new FileInfo(path);
+            return file.Exists ? new FileSignature(file.LastWriteTimeUtc.Ticks, file.Length) : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string NormalizePath(string path)
+    {
+        try
+        {
+            return Path.GetFullPath(path);
+        }
+        catch
+        {
+            return path;
+        }
+    }
+
+    private static int GetPhysicalThumbnailSize(int logicalSize) =>
+        Math.Max(DpiHelper.ToPhysicalPixels(logicalSize), logicalSize);
 
     private static ImageSource? LoadThumbnail(string path, int size)
     {
@@ -88,20 +214,7 @@ public sealed class ThumbnailService
                 return LoadBitmapFallback(path, size);
             }
 
-            try
-            {
-                var bitmap = Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap,
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-                bitmap.Freeze();
-                return bitmap;
-            }
-            finally
-            {
-                NativeMethods.DeleteObject(hBitmap);
-            }
+            return DpiHelper.FromHBitmap(hBitmap);
         }
         catch
         {
@@ -128,29 +241,21 @@ public sealed class ThumbnailService
         }
     }
 
-    private void AddToCache(string path, ImageSource thumbnail)
+    private readonly record struct CacheKey(string Path, int PhysicalSize)
     {
-        lock (_cacheLock)
-        {
-            if (_cache.TryAdd(path, thumbnail))
-            {
-                _cacheOrder.AddLast(path);
-                while (_cacheOrder.Count > MaxCacheEntries)
-                {
-                    var oldest = _cacheOrder.First!.Value;
-                    _cacheOrder.RemoveFirst();
-                    _cache.Remove(oldest, out _);
-                }
-            }
-        }
+        public bool Equals(CacheKey other) =>
+            PhysicalSize == other.PhysicalSize &&
+            StringComparer.OrdinalIgnoreCase.Equals(Path, other.Path);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(StringComparer.OrdinalIgnoreCase.GetHashCode(Path), PhysicalSize);
     }
 
-    private void TouchCache(string path)
-    {
-        lock (_cacheLock)
-        {
-            _cacheOrder.Remove(path);
-            _cacheOrder.AddLast(path);
-        }
-    }
+    private readonly record struct FileSignature(long LastWriteTicks, long Length);
+
+    private sealed record CacheEntry(
+        ImageSource Image,
+        FileSignature Signature,
+        long EstimatedBytes,
+        LinkedListNode<CacheKey> Node);
 }

@@ -8,6 +8,13 @@ namespace MiniExplorer.Services;
 
 public sealed class FileSystemService
 {
+    private readonly DirectoryCacheService? _directoryCache;
+
+    public FileSystemService(DirectoryCacheService? directoryCache = null)
+    {
+        _directoryCache = directoryCache;
+    }
+
     public IReadOnlyList<FileSystemEntry> GetDrives()
     {
         return DriveInfo.GetDrives()
@@ -30,11 +37,21 @@ public sealed class FileSystemService
         string? filter,
         CancellationToken cancellationToken,
         SortField sortField = SortField.Name,
-        bool sortAscending = true)
+        bool sortAscending = true,
+        bool bypassCache = false)
     {
         if (path == PathConstants.ThisPc)
         {
             return await Task.Run(() => GetDrives(), cancellationToken);
+        }
+
+        if (!bypassCache && _directoryCache?.TryGet(path, out var cached) == true)
+        {
+            return await Task.Run(
+                () => ApplyFilterAndSorting(cached, filter, sortField, sortAscending)
+                    .Select(CloneEntry)
+                    .ToList(),
+                cancellationToken);
         }
 
         return await Task.Run(() =>
@@ -45,11 +62,6 @@ public sealed class FileSystemService
             foreach (var dir in directory.EnumerateDirectories())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!MatchesFilter(dir.Name, filter))
-                {
-                    continue;
-                }
-
                 DateTime? modified = null;
                 try
                 {
@@ -72,11 +84,6 @@ public sealed class FileSystemService
             foreach (var file in directory.EnumerateFiles())
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (!MatchesFilter(file.Name, filter))
-                {
-                    continue;
-                }
-
                 long? size = null;
                 DateTime? modified = null;
                 try
@@ -100,8 +107,91 @@ public sealed class FileSystemService
                 });
             }
 
-            return ApplySorting(entries, sortField, sortAscending);
+            _directoryCache?.Set(path, entries);
+            return ApplyFilterAndSorting(entries, filter, sortField, sortAscending);
         }, cancellationToken);
+    }
+
+    private static IReadOnlyList<FileSystemEntry> ApplyFilterAndSorting(
+        IReadOnlyList<FileSystemEntry> entries,
+        string? filter,
+        SortField sortField,
+        bool sortAscending)
+    {
+        var filtered = string.IsNullOrWhiteSpace(filter)
+            ? entries
+            : entries.Where(entry => MatchesFilter(entry.Name, filter)).ToList();
+        return ApplySorting(filtered, sortField, sortAscending);
+    }
+
+    private static FileSystemEntry CloneEntry(FileSystemEntry entry) => new()
+    {
+        FullPath = entry.FullPath,
+        Name = entry.Name,
+        IsDirectory = entry.IsDirectory,
+        Size = entry.Size,
+        Modified = entry.Modified,
+        Extension = entry.Extension
+    };
+
+    public FileSystemEntry? TryGetEntry(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                var dir = new DirectoryInfo(path);
+                DateTime? modified = null;
+                try
+                {
+                    modified = dir.LastWriteTime;
+                }
+                catch
+                {
+                    // Ignore inaccessible metadata.
+                }
+
+                return new FileSystemEntry
+                {
+                    FullPath = dir.FullName,
+                    Name = dir.Name,
+                    IsDirectory = true,
+                    Modified = modified
+                };
+            }
+
+            if (File.Exists(path))
+            {
+                var file = new FileInfo(path);
+                long? size = null;
+                DateTime? modified = null;
+                try
+                {
+                    size = file.Length;
+                    modified = file.LastWriteTime;
+                }
+                catch
+                {
+                    // Ignore inaccessible metadata.
+                }
+
+                return new FileSystemEntry
+                {
+                    FullPath = file.FullName,
+                    Name = file.Name,
+                    IsDirectory = false,
+                    Extension = file.Extension,
+                    Size = size,
+                    Modified = modified
+                };
+            }
+        }
+        catch
+        {
+            // Ignore inaccessible paths.
+        }
+
+        return null;
     }
 
     private static IReadOnlyList<FileSystemEntry> ApplySorting(

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.ObjectModel;
+using System.Threading.Channels;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using MiniExplorer.Helpers;
@@ -16,10 +17,12 @@ public partial class TabViewModel : ObservableObject
     private readonly FileSystemService _fileSystemService;
     private readonly ShellService _shellService;
     private readonly ThumbnailService _thumbnailService;
+    private readonly DirectoryCacheService _directoryCacheService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _watchDebounceCts;
     private FileSystemWatcher? _watcher;
     private readonly object _watchLock = new();
+    private readonly SemaphoreSlim _iconLoadGate = new(1, 1);
     private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _watchingRequested;
     private int _watchGeneration;
@@ -28,24 +31,25 @@ public partial class TabViewModel : ObservableObject
 
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
+    private double _tileIconLogicalSize = 187;
 
     public TabViewModel(
         FileSystemService fileSystemService,
         ShellService shellService,
         ThumbnailService thumbnailService,
+        DirectoryCacheService directoryCacheService,
         string initialPath)
     {
         _fileSystemService = fileSystemService;
         _shellService = shellService;
         _thumbnailService = thumbnailService;
+        _directoryCacheService = directoryCacheService;
         CurrentPath = initialPath;
         AddressText = initialPath == PathConstants.ThisPc ? ThisPcLabel : initialPath;
         _ = LoadAsync();
     }
 
     public ObservableCollection<FileSystemEntry> Items { get; } = [];
-    public ObservableCollection<FileSystemEntry> FolderAndFileItems { get; } = [];
-    public ObservableCollection<FileSystemEntry> ImageItems { get; } = [];
 
     [ObservableProperty]
     private string _currentPath;
@@ -66,16 +70,12 @@ public partial class TabViewModel : ObservableObject
     private FileSystemEntry? _selectedItem;
 
     [ObservableProperty]
-    private bool _usePicturesLayout;
-
-    [ObservableProperty]
-    private bool _hasFolderAndFileItems;
-
-    [ObservableProperty]
     private SortField _sortField = SortField.Name;
 
     [ObservableProperty]
     private bool _sortAscending = true;
+
+    public ViewMode ViewMode { get; set; } = ViewMode.List;
 
     public ObservableCollection<FileSystemEntry> SelectedItems { get; } = [];
 
@@ -199,12 +199,66 @@ public partial class TabViewModel : ObservableObject
     public async Task RefreshAsync()
     {
         CancelScheduledAutoRefresh();
-        await LoadAsync();
+        _directoryCacheService.InvalidateDirectory(CurrentPath);
+        await LoadAsync(bypassDirectoryCache: true);
+    }
+
+    public async Task OnViewModeChangedAsync()
+    {
+        if (ViewMode == ViewMode.Icons && Items.Count > 0)
+        {
+            var token = _loadCts?.Token ?? CancellationToken.None;
+            await LoadIconViewAssetsAsync(token);
+        }
+    }
+
+    public void SetTileIconLogicalSize(double logicalSize)
+    {
+        if (Math.Abs(_tileIconLogicalSize - logicalSize) < 0.5)
+        {
+            return;
+        }
+
+        _tileIconLogicalSize = logicalSize;
+        foreach (var entry in Items)
+        {
+            entry.TileIcon = null;
+        }
+
+        if (ViewMode == ViewMode.Icons && Items.Count > 0)
+        {
+            _ = LoadIconViewAssetsAsync(_loadCts?.Token ?? CancellationToken.None);
+        }
+    }
+
+    public async Task ReloadIconViewAssetsAsync()
+    {
+        if (ViewMode == ViewMode.Icons && Items.Count > 0)
+        {
+            await LoadIconViewAssetsAsync(_loadCts?.Token ?? CancellationToken.None);
+        }
+    }
+
+    internal void ReloadTileIconsForDpiChange()
+    {
+        foreach (var entry in Items)
+        {
+            entry.TileIcon = null;
+        }
+
+        if (ViewMode == ViewMode.Icons && Items.Count > 0)
+        {
+            _ = LoadIconViewAssetsAsync(_loadCts?.Token ?? CancellationToken.None);
+        }
     }
 
     partial void OnFilterTextChanged(string value) => _ = LoadAsync();
 
-    public async Task LoadAsync(bool showLoading = true, bool restoreSelection = false)
+    public async Task LoadAsync(
+        bool showLoading = true,
+        bool restoreSelection = false,
+        bool bypassDirectoryCache = false,
+        int? requiredWatchGeneration = null)
     {
         var selectedPaths = restoreSelection
             ? SelectedItems.Select(item => item.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -224,47 +278,48 @@ public partial class TabViewModel : ObservableObject
                 StatusMessage = LocalizationService.Get("Common_Loading");
             }
 
-            UsePicturesLayout = PicturesPathHelper.IsUnderPictures(CurrentPath);
-
-            var entries = await _fileSystemService.ListDirectoryAsync(CurrentPath, FilterText, token, SortField, SortAscending);
+            var entries = await _fileSystemService.ListDirectoryAsync(
+                CurrentPath,
+                FilterText,
+                token,
+                SortField,
+                SortAscending,
+                bypassDirectoryCache);
             token.ThrowIfCancellationRequested();
+            if (requiredWatchGeneration is int generation &&
+                (!_watchingRequested || generation != _watchGeneration))
+            {
+                return;
+            }
 
             Items.Clear();
-            FolderAndFileItems.Clear();
-            ImageItems.Clear();
 
             foreach (var entry in entries)
             {
-                entry.Icon = _shellService.GetIcon(entry.FullPath, entry.IsDirectory);
+                var existing = FindExistingEntry(entry.FullPath);
+                if (existing is not null)
+                {
+                    entry.Icon = existing.Icon;
+                    entry.TileIcon = existing.TileIcon;
+                    entry.Thumbnail = existing.Thumbnail;
+                }
+                else
+                {
+                    entry.Icon = _shellService.GetListIcon(entry.FullPath, entry.IsDirectory);
+                }
+
                 Items.Add(entry);
             }
 
-            if (UsePicturesLayout)
-            {
-                foreach (var entry in entries)
-                {
-                    if (entry.IsDirectory || !PicturesPathHelper.IsImageFile(entry.FullPath))
-                    {
-                        FolderAndFileItems.Add(entry);
-                    }
-                    else
-                    {
-                        ImageItems.Add(entry);
-                    }
-                }
+            _loadedItemCount = Items.Count;
+            _loadedImageCount = Items.Count(e => !e.IsDirectory && PicturesPathHelper.IsImageFile(e.FullPath));
+            RecomputeStatusMessage();
 
-                HasFolderAndFileItems = FolderAndFileItems.Count > 0;
-                _loadedItemCount = entries.Count;
-                _loadedImageCount = ImageItems.Count;
-                StatusMessage = LocalizationService.Get("Status_ItemCountWithImages", _loadedItemCount, _loadedImageCount);
-                _ = LoadThumbnailsAsync(token);
-            }
-            else
+            if (ViewMode == ViewMode.Icons)
             {
-                HasFolderAndFileItems = false;
-                _loadedItemCount = Items.Count;
-                _loadedImageCount = 0;
-                StatusMessage = LocalizationService.Get("Status_ItemCount", _loadedItemCount);
+                // Populate shell images progressively. Directory navigation should
+                // not remain in the loading state while every icon is decoded.
+                _ = LoadIconViewAssetsAsync(token);
             }
 
             OnPropertyChanged(nameof(SelectionStatus));
@@ -285,9 +340,6 @@ public partial class TabViewModel : ObservableObject
         catch (Exception ex)
         {
             Items.Clear();
-            FolderAndFileItems.Clear();
-            ImageItems.Clear();
-            HasFolderAndFileItems = false;
             StatusMessage = ex.Message;
         }
         finally
@@ -295,6 +347,8 @@ public partial class TabViewModel : ObservableObject
             if (ReferenceEquals(_loadCts, loadCts))
             {
                 IsLoading = false;
+                RecomputeStatusMessage();
+                OnPropertyChanged(nameof(SelectionStatus));
             }
         }
     }
@@ -312,8 +366,18 @@ public partial class TabViewModel : ObservableObject
 
     public async Task ActivateAsync()
     {
+        var hadCachedListing = _directoryCacheService.Contains(CurrentPath);
         StartWatching();
+        var generation = _watchGeneration;
         await LoadAsync(showLoading: false, restoreSelection: true);
+        if (hadCachedListing && _watchingRequested && generation == _watchGeneration)
+        {
+            _ = LoadAsync(
+                showLoading: false,
+                restoreSelection: true,
+                bypassDirectoryCache: true,
+                requiredWatchGeneration: generation);
+        }
     }
 
     public void StartWatching()
@@ -327,6 +391,7 @@ public partial class TabViewModel : ObservableObject
     {
         _watchGeneration++;
         _watchingRequested = false;
+        _loadCts?.Cancel();
         CancelScheduledAutoRefresh();
         DisposeWatcher();
     }
@@ -455,8 +520,16 @@ public partial class TabViewModel : ObservableObject
                     return;
                 }
 
-                _thumbnailService.Invalidate(changedPaths);
-                await LoadAsync(showLoading: false, restoreSelection: true);
+                if (PicturesPathHelper.IsUnderPictures(CurrentPath))
+                {
+                    await RefreshChangedEntriesAsync(changedPaths, token);
+                }
+                else
+                {
+                    _thumbnailService.Invalidate(changedPaths);
+                    _directoryCacheService.InvalidateDirectory(CurrentPath);
+                    await LoadAsync(showLoading: false, restoreSelection: true);
+                }
 
                 if (_watcher is null)
                 {
@@ -491,36 +564,348 @@ public partial class TabViewModel : ObservableObject
         watcher.Dispose();
     }
 
-    private async Task LoadThumbnailsAsync(CancellationToken token)
+    private async Task RefreshChangedEntriesAsync(string[] changedPaths, CancellationToken token)
     {
-        foreach (var entry in ImageItems.ToList())
+        var selectedPaths = SelectedItems
+            .Select(item => item.FullPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var removedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var refreshedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _thumbnailService.Invalidate(changedPaths);
+
+        foreach (var path in changedPaths)
         {
+            token.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(path) || !IsDirectChild(path))
+            {
+                continue;
+            }
+
+            _directoryCacheService.InvalidateForPath(path);
+
+            if (!File.Exists(path) && !Directory.Exists(path))
+            {
+                removedPaths.Add(path);
+                continue;
+            }
+
+            refreshedPaths.Add(path);
+        }
+
+        if (removedPaths.Count > 0)
+        {
+            RemoveEntries(removedPaths);
+        }
+
+        foreach (var path in refreshedPaths)
+        {
+            token.ThrowIfCancellationRequested();
+            var entry = _fileSystemService.TryGetEntry(path);
+            if (entry is null)
+            {
+                continue;
+            }
+
+            if (!MatchesCurrentFilter(entry))
+            {
+                removedPaths.Add(path);
+                continue;
+            }
+
+            var existing = FindExistingEntry(path);
+            if (existing is not null)
+            {
+                ReplaceEntry(existing, entry);
+                continue;
+            }
+
+            entry.Icon = _shellService.GetListIcon(entry.FullPath, entry.IsDirectory);
+            Items.Add(entry);
+        }
+
+        if (removedPaths.Count > 0)
+        {
+            RemoveEntries(removedPaths);
+        }
+
+        token.ThrowIfCancellationRequested();
+        ReorderEntries();
+        _loadedItemCount = Items.Count;
+        _loadedImageCount = Items.Count(e => !e.IsDirectory && PicturesPathHelper.IsImageFile(e.FullPath));
+        RecomputeStatusMessage();
+        OnPropertyChanged(nameof(SelectionStatus));
+        SelectionRestoreRequested?.Invoke(
+            Items.Select(item => item.FullPath).Where(selectedPaths.Contains).ToList());
+
+        if (ViewMode == ViewMode.Icons && refreshedPaths.Count > 0)
+        {
+            var prioritizePaths = refreshedPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            await LoadIconViewAssetsAsync(token, prioritizePaths: prioritizePaths);
+        }
+    }
+
+    private bool IsDirectChild(string path)
+    {
+        var parent = Path.GetDirectoryName(path);
+        return string.Equals(parent, CurrentPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesCurrentFilter(FileSystemEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(FilterText))
+        {
+            return true;
+        }
+
+        return entry.Name.Contains(FilterText.Trim(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private FileSystemEntry? FindExistingEntry(string fullPath) =>
+        Items.FirstOrDefault(item => string.Equals(item.FullPath, fullPath, StringComparison.OrdinalIgnoreCase));
+
+    private void RemoveEntries(IEnumerable<string> paths)
+    {
+        var pathSet = paths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        for (var i = Items.Count - 1; i >= 0; i--)
+        {
+            if (pathSet.Contains(Items[i].FullPath))
+            {
+                Items.RemoveAt(i);
+            }
+        }
+    }
+
+    private void ReplaceEntry(FileSystemEntry existing, FileSystemEntry updated)
+    {
+        var index = Items.IndexOf(existing);
+        if (index < 0)
+        {
+            return;
+        }
+
+        updated.Icon = existing.Icon ?? _shellService.GetListIcon(updated.FullPath, updated.IsDirectory);
+        if (existing.Modified == updated.Modified && existing.Size == updated.Size)
+        {
+            updated.Thumbnail = existing.Thumbnail;
+            updated.TileIcon = existing.TileIcon;
+        }
+        else
+        {
+            _thumbnailService.Invalidate([updated.FullPath]);
+            updated.TileIcon = null;
+        }
+
+        Items[index] = updated;
+    }
+
+    private void ReorderEntries()
+    {
+        var sorted = SortEntries(Items);
+        if (Items.Select(item => item.FullPath).SequenceEqual(
+                sorted.Select(item => item.FullPath),
+                StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Items.Clear();
+        foreach (var item in sorted)
+        {
+            Items.Add(item);
+        }
+    }
+
+    private IReadOnlyList<FileSystemEntry> SortEntries(IEnumerable<FileSystemEntry> entries)
+    {
+        var list = entries.ToList();
+        var directories = list.Where(e => e.IsDirectory);
+        var files = list.Where(e => !e.IsDirectory);
+        return SortField switch
+        {
+            SortField.Modified => SortAscending
+                ? directories.OrderBy(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderBy(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+                : directories.OrderByDescending(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderByDescending(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList(),
+            SortField.Type => SortAscending
+                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderBy(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderByDescending(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList(),
+            SortField.Size => SortAscending
+                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderBy(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderByDescending(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList(),
+            _ => SortAscending
+                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                    .Concat(files.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase))
+                    .ToList()
+        };
+    }
+
+    private async Task LoadIconViewAssetsAsync(
+        CancellationToken token,
+        IReadOnlySet<string>? prioritizePaths = null)
+    {
+        await _iconLoadGate.WaitAsync(token);
+        try
+        {
+            var entries = Items
+                .Select((entry, index) => (entry, index))
+                .OrderByDescending(x => prioritizePaths?.Contains(x.entry.FullPath) == true)
+                .ThenBy(x => x.index)
+                .Select(x => x.entry)
+                .ToList();
+
+            var thumbnailTask = LoadThumbnailsBoundedAsync(entries, token, prioritizePaths);
+
+            // Keep shell tile-icon extraction serialized; Windows shell icon
+            // providers are not reliably re-entrant.
+            foreach (var entry in entries)
+            {
+                token.ThrowIfCancellationRequested();
+                if (entry.TileIcon is null || prioritizePaths?.Contains(entry.FullPath) == true)
+                {
+                    await LoadSingleTileIconAsync(entry, token);
+                }
+            }
+
+            await thumbnailTask;
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer navigation/load owns the icon queue now.
+        }
+        finally
+        {
+            _iconLoadGate.Release();
+            OnPropertyChanged(nameof(SelectionStatus));
+        }
+    }
+
+    private async Task LoadSingleTileIconAsync(FileSystemEntry entry, CancellationToken token)
+    {
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            var tileIcon = await Task.Run(
+                () => _shellService.GetTileIcon(entry.FullPath, entry.IsDirectory, _tileIconLogicalSize),
+                token);
             if (token.IsCancellationRequested)
             {
                 return;
             }
 
-            try
-            {
-                var thumbnail = await _thumbnailService.GetThumbnailAsync(entry.FullPath, token);
-                if (token.IsCancellationRequested)
-                {
-                    return;
-                }
+            await Application.Current.Dispatcher.InvokeAsync(() => entry.TileIcon = tileIcon);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancelled loads.
+        }
+        catch
+        {
+            // Skip failed tile icons.
+        }
+    }
 
-                if (thumbnail is not null)
-                {
-                    await Application.Current.Dispatcher.InvokeAsync(() => entry.Thumbnail = thumbnail);
-                }
+    private async Task LoadThumbnailsBoundedAsync(
+        IReadOnlyList<FileSystemEntry> orderedEntries,
+        CancellationToken token,
+        IReadOnlySet<string>? prioritizePaths = null)
+    {
+        var channel = Channel.CreateBounded<FileSystemEntry>(new BoundedChannelOptions(64)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = false
+        });
+
+        var producer = Task.Run(async () =>
+        {
+            foreach (var entry in orderedEntries
+            .Where(entry => !entry.IsDirectory && PicturesPathHelper.IsImageFile(entry.FullPath))
+            .OrderByDescending(entry => prioritizePaths?.Contains(entry.FullPath) == true)
+            .ThenByDescending(entry => entry.Modified ?? DateTime.MinValue))
+            {
+                await channel.Writer.WriteAsync(entry, token);
             }
-            catch (OperationCanceledException)
+
+            channel.Writer.TryComplete();
+        }, token);
+
+        var workers = Enumerable.Range(0, 6).Select(_ => Task.Run(async () =>
+        {
+            await foreach (var entry in channel.Reader.ReadAllAsync(token))
+            {
+                await LoadSingleThumbnailAsync(
+                    entry,
+                    token,
+                    retryIfMissing: prioritizePaths?.Contains(entry.FullPath) == true);
+            }
+        }, token)).ToArray();
+
+        try
+        {
+            await Task.WhenAll(workers.Prepend(producer));
+        }
+        finally
+        {
+            channel.Writer.TryComplete();
+        }
+    }
+
+    private async Task LoadSingleThumbnailAsync(
+        FileSystemEntry entry,
+        CancellationToken token,
+        bool retryIfMissing)
+    {
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        try
+        {
+            if (entry.Thumbnail is not null && !retryIfMissing)
             {
                 return;
             }
-            catch
+
+            var thumbnail = await _thumbnailService.GetThumbnailAsync(
+                entry.FullPath,
+                token,
+                retryIfMissing: retryIfMissing);
+            if (token.IsCancellationRequested)
             {
-                // Skip failed thumbnails.
+                return;
             }
+
+            if (thumbnail is not null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() => entry.Thumbnail = thumbnail);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Ignore cancelled loads.
+        }
+        catch
+        {
+            // Skip failed thumbnails.
         }
     }
 
@@ -535,8 +920,6 @@ public partial class TabViewModel : ObservableObject
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(SelectionStatus));
         NotifyEntryDisplayChanged(Items);
-        NotifyEntryDisplayChanged(FolderAndFileItems);
-        NotifyEntryDisplayChanged(ImageItems);
     }
 
     private static void NotifyEntryDisplayChanged(IEnumerable<FileSystemEntry> entries)
@@ -555,7 +938,7 @@ public partial class TabViewModel : ObservableObject
             return;
         }
 
-        if (UsePicturesLayout)
+        if (PicturesPathHelper.IsUnderPictures(CurrentPath) && _loadedImageCount > 0)
         {
             StatusMessage = LocalizationService.Get("Status_ItemCountWithImages", _loadedItemCount, _loadedImageCount);
         }
