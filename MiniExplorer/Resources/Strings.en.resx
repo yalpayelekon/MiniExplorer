@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Common_Ready" xml:space="preserve"><value>Ready</value></data>
+  <data name="Common_ThisPc" xml:space="preserve"><value>This PC</value></data>
+  <data name="Common_Loading" xml:space="preserve"><value>Loading...</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Close</value></data>
+  <data name="Common_OK" xml:space="preserve"><value>OK</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>Cancel</value></data>
+  <data name="Common_Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Settings_Title" xml:space="preserve"><value>Settings</value></data>
+  <data name="Settings_Appearance" xml:space="preserve"><value>Appearance</value></data>
+  <data name="Settings_AppearanceHint" xml:space="preserve"><value>Choose the color palette, language, and content scale.</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="Settings_Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Settings_LanguageTurkish" xml:space="preserve"><value>Türkçe</value></data>
+  <data name="Settings_LanguageEnglish" xml:space="preserve"><value>English</value></data>
+  <data name="Settings_IconSize" xml:space="preserve"><value>Icon size</value></data>
+  <data name="Settings_ThemeDark" xml:space="preserve"><value>Dark</value></data>
+  <data name="Settings_ThemeBlue" xml:space="preserve"><value>Blue</value></data>
+  <data name="Settings_ThemeAmoled" xml:space="preserve"><value>AMOLED</value></data>
+  <data name="Settings_ThemeNord" xml:space="preserve"><value>Nord</value></data>
+  <data name="Settings_ThemeDracula" xml:space="preserve"><value>Dracula</value></data>
+  <data name="Settings_ThemeLight" xml:space="preserve"><value>Light</value></data>
+  <data name="Settings_IconSmall" xml:space="preserve"><value>Small</value></data>
+  <data name="Settings_IconMedium" xml:space="preserve"><value>Medium</value></data>
+  <data name="Settings_IconLarge" xml:space="preserve"><value>Large</value></data>
+  <data name="Settings_HeaderSection" xml:space="preserve"><value>Top section</value></data>
+  <data name="Settings_HeaderHint" xml:space="preserve"><value>Customize the tab bar appearance and toolbar buttons.</value></data>
+  <data name="Settings_HeaderStyle" xml:space="preserve"><value>Header style</value></data>
+  <data name="Settings_HeaderDefault" xml:space="preserve"><value>Default</value></data>
+  <data name="Settings_HeaderDarker" xml:space="preserve"><value>Darker</value></data>
+  <data name="Settings_HeaderAccent" xml:space="preserve"><value>Accent</value></data>
+  <data name="Settings_Density" xml:space="preserve"><value>Density</value></data>
+  <data name="Settings_DensityCompact" xml:space="preserve"><value>Compact</value></data>
+  <data name="Settings_DensityNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="Settings_DensitySpacious" xml:space="preserve"><value>Spacious</value></data>
+  <data name="Settings_ToolbarButtons" xml:space="preserve"><value>Toolbar buttons</value></data>
+  <data name="Settings_ShowBack" xml:space="preserve"><value>Back</value></data>
+  <data name="Settings_ShowForward" xml:space="preserve"><value>Forward</value></data>
+  <data name="Settings_ShowUp" xml:space="preserve"><value>Up</value></data>
+  <data name="Settings_ShowRefresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Settings_ShowCopyPath" xml:space="preserve"><value>Copy path</value></data>
+  <data name="Settings_ShowExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
+  <data name="Settings_SettingsAlwaysVisible" xml:space="preserve"><value>The Settings button always remains visible.</value></data>
+  <data name="Sidebar_Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Sidebar_Desktop" xml:space="preserve"><value>Desktop</value></data>
+  <data name="Sidebar_Downloads" xml:space="preserve"><value>Downloads</value></data>
+  <data name="Sidebar_Documents" xml:space="preserve"><value>Documents</value></data>
+  <data name="Sidebar_Pictures" xml:space="preserve"><value>Pictures</value></data>
+  <data name="Sidebar_QuickAccess" xml:space="preserve"><value>Quick access</value></data>
+  <data name="Sidebar_ThisPc" xml:space="preserve"><value>This PC</value></data>
+  <data name="Toolbar_NewTab" xml:space="preserve"><value>New tab (Ctrl+T)</value></data>
+  <data name="Toolbar_CloseTab" xml:space="preserve"><value>Close tab (Ctrl+W)</value></data>
+  <data name="Toolbar_Refresh" xml:space="preserve"><value>Refresh (F5)</value></data>
+  <data name="Toolbar_CopyPath" xml:space="preserve"><value>Copy path</value></data>
+  <data name="Toolbar_OpenExplorer" xml:space="preserve"><value>Open in Explorer</value></data>
+  <data name="Toolbar_Settings" xml:space="preserve"><value>Settings</value></data>
+  <data name="Toolbar_Filter" xml:space="preserve"><value>Filter in current folder</value></data>
+  <data name="Column_Name" xml:space="preserve"><value>Name</value></data>
+  <data name="Column_Modified" xml:space="preserve"><value>Date modified</value></data>
+  <data name="Column_Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Column_Size" xml:space="preserve"><value>Size</value></data>
+  <data name="Menu_Open" xml:space="preserve"><value>Open</value></data>
+  <data name="Menu_OpenNewTab" xml:space="preserve"><value>Open in new tab</value></data>
+  <data name="Menu_PinQuickAccess" xml:space="preserve"><value>Pin to Quick access</value></data>
+  <data name="Menu_PinFolders" xml:space="preserve"><value>Pin {0} folders to Quick access</value></data>
+  <data name="Menu_CopyPath" xml:space="preserve"><value>Copy as path</value></data>
+  <data name="Menu_CopyPaths" xml:space="preserve"><value>Copy {0} paths</value></data>
+  <data name="Menu_OpenWithCode" xml:space="preserve"><value>Open with VS Code</value></data>
+  <data name="Menu_OpenFoldersWithCode" xml:space="preserve"><value>Open {0} folders with VS Code</value></data>
+  <data name="Menu_OpenTerminal" xml:space="preserve"><value>Open in terminal</value></data>
+  <data name="Menu_OpenTerminals" xml:space="preserve"><value>Open terminal in {0} folders</value></data>
+  <data name="Menu_Cut" xml:space="preserve"><value>Cut</value></data>
+  <data name="Menu_Copy" xml:space="preserve"><value>Copy</value></data>
+  <data name="Menu_Paste" xml:space="preserve"><value>Paste</value></data>
+  <data name="Menu_Rename" xml:space="preserve"><value>Rename</value></data>
+  <data name="Menu_Delete" xml:space="preserve"><value>Delete</value></data>
+  <data name="Menu_DeleteItems" xml:space="preserve"><value>Delete {0} items</value></data>
+  <data name="Menu_Refresh" xml:space="preserve"><value>Refresh</value></data>
+  <data name="Menu_Unpin" xml:space="preserve"><value>Unpin</value></data>
+  <data name="Menu_EditNotepad" xml:space="preserve"><value>Edit with Notepad++</value></data>
+  <data name="Menu_RunAsAdmin" xml:space="preserve"><value>Run as administrator</value></data>
+  <data name="Menu_OpenWith" xml:space="preserve"><value>Open with...</value></data>
+  <data name="Dialog_RenameTitle" xml:space="preserve"><value>Rename</value></data>
+  <data name="Dialog_NewName" xml:space="preserve"><value>New name:</value></data>
+  <data name="Dialog_OpenWithOpen" xml:space="preserve"><value>Open</value></data>
+  <data name="Dialog_OpenWithOther" xml:space="preserve"><value>Other app...</value></data>
+  <data name="Status_ItemsSelected" xml:space="preserve"><value>{0} items selected</value></data>
+  <data name="Status_ItemCount" xml:space="preserve"><value>{0} items</value></data>
+  <data name="Status_ItemCountWithImages" xml:space="preserve"><value>{0} items ({1} images)</value></data>
+  <data name="Status_PathCopyFailed" xml:space="preserve"><value>The path for this location cannot be copied.</value></data>
+  <data name="Status_ExplorerOpenFailed" xml:space="preserve"><value>This location cannot be opened in Explorer.</value></data>
+  <data name="Status_OpenedInExplorer" xml:space="preserve"><value>Opened in Explorer.</value></data>
+  <data name="Status_InvalidPath" xml:space="preserve"><value>Invalid folder path.</value></data>
+  <data name="Status_ItemsCut" xml:space="preserve"><value>{0} items cut.</value></data>
+  <data name="Status_ItemsCopied" xml:space="preserve"><value>{0} items copied.</value></data>
+  <data name="Status_PasteInvalidFolder" xml:space="preserve"><value>Select a valid folder to paste into.</value></data>
+  <data name="Status_MoveComplete" xml:space="preserve"><value>Move completed.</value></data>
+  <data name="Status_PasteComplete" xml:space="preserve"><value>Paste completed.</value></data>
+  <data name="Status_ItemsDeleted" xml:space="preserve"><value>{0} items sent to the Recycle Bin.</value></data>
+  <data name="Status_RenameSingleSelect" xml:space="preserve"><value>Select a single item to rename.</value></data>
+  <data name="Status_Renamed" xml:space="preserve"><value>Renamed.</value></data>
+  <data name="Status_PathCopied" xml:space="preserve"><value>Path copied to clipboard.</value></data>
+  <data name="Status_PathsCopied" xml:space="preserve"><value>{0} paths copied to clipboard.</value></data>
+  <data name="Status_Pinned" xml:space="preserve"><value>Pinned to Quick access.</value></data>
+  <data name="Status_FoldersPinned" xml:space="preserve"><value>{0} folders pinned to Quick access.</value></data>
+  <data name="Status_Unpinned" xml:space="preserve"><value>Unpinned.</value></data>
+  <data name="Status_OpenedWithCode" xml:space="preserve"><value>Opened with VS Code.</value></data>
+  <data name="Status_FoldersOpenedWithCode" xml:space="preserve"><value>{0} folders opened with VS Code.</value></data>
+  <data name="Status_OpenedNotepad" xml:space="preserve"><value>Opened with Notepad++.</value></data>
+  <data name="Status_TerminalFailed" xml:space="preserve"><value>Terminal cannot be opened at this location.</value></data>
+  <data name="Status_TerminalOpened" xml:space="preserve"><value>Terminal opened.</value></data>
+  <data name="Status_TerminalsOpened" xml:space="preserve"><value>Terminal opened in {0} folders.</value></data>
+  <data name="Status_RunAsAdmin" xml:space="preserve"><value>Started as administrator.</value></data>
+  <data name="FileType_Folder" xml:space="preserve"><value>File folder</value></data>
+  <data name="FileType_File" xml:space="preserve"><value>File</value></data>
+  <data name="FileType_Extension" xml:space="preserve"><value>{0} file</value></data>
+</root>

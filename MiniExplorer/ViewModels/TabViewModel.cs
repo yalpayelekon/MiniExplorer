@@ -10,6 +10,7 @@ namespace MiniExplorer.ViewModels;
 
 public partial class TabViewModel : ObservableObject
 {
+    private static string ThisPcLabel => LocalizationService.Get("Common_ThisPc");
     private static readonly TimeSpan WatchDebounceDelay = TimeSpan.FromMilliseconds(350);
 
     private readonly FileSystemService _fileSystemService;
@@ -22,6 +23,8 @@ public partial class TabViewModel : ObservableObject
     private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _watchingRequested;
     private int _watchGeneration;
+    private int _loadedItemCount;
+    private int _loadedImageCount;
 
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
@@ -36,7 +39,7 @@ public partial class TabViewModel : ObservableObject
         _shellService = shellService;
         _thumbnailService = thumbnailService;
         CurrentPath = initialPath;
-        AddressText = initialPath == PathConstants.ThisPc ? "Bu bilgisayar" : initialPath;
+        AddressText = initialPath == PathConstants.ThisPc ? ThisPcLabel : initialPath;
         _ = LoadAsync();
     }
 
@@ -94,11 +97,11 @@ public partial class TabViewModel : ObservableObject
     {
         0 => StatusMessage,
         1 => StatusMessage,
-        _ => $"{SelectedItems.Count} öğe seçildi"
+        _ => LocalizationService.Get("Status_ItemsSelected", SelectedItems.Count)
     };
 
     public string Title => CurrentPath == PathConstants.ThisPc
-        ? "Bu bilgisayar"
+        ? ThisPcLabel
         : Path.GetFileName(CurrentPath.TrimEnd(Path.DirectorySeparatorChar)) is { Length: > 0 } name
             ? name
             : CurrentPath;
@@ -122,7 +125,7 @@ public partial class TabViewModel : ObservableObject
         }
 
         CurrentPath = path;
-        AddressText = path == PathConstants.ThisPc ? "Bu bilgisayar" : path;
+        AddressText = path == PathConstants.ThisPc ? ThisPcLabel : path;
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(CanGoUp));
         await LoadAsync();
@@ -145,7 +148,7 @@ public partial class TabViewModel : ObservableObject
         _forwardStack.Push(CurrentPath);
         var previous = _backStack.Pop();
         CurrentPath = previous;
-        AddressText = previous == PathConstants.ThisPc ? "Bu bilgisayar" : previous;
+        AddressText = previous == PathConstants.ThisPc ? ThisPcLabel : previous;
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(CanGoBack));
         OnPropertyChanged(nameof(CanGoForward));
@@ -170,7 +173,7 @@ public partial class TabViewModel : ObservableObject
         _backStack.Push(CurrentPath);
         var next = _forwardStack.Pop();
         CurrentPath = next;
-        AddressText = next == PathConstants.ThisPc ? "Bu bilgisayar" : next;
+        AddressText = next == PathConstants.ThisPc ? ThisPcLabel : next;
         OnPropertyChanged(nameof(Title));
         OnPropertyChanged(nameof(CanGoBack));
         OnPropertyChanged(nameof(CanGoForward));
@@ -218,7 +221,7 @@ public partial class TabViewModel : ObservableObject
             if (showLoading)
             {
                 IsLoading = true;
-                StatusMessage = "Yükleniyor...";
+                StatusMessage = LocalizationService.Get("Common_Loading");
             }
 
             UsePicturesLayout = PicturesPathHelper.IsUnderPictures(CurrentPath);
@@ -251,13 +254,17 @@ public partial class TabViewModel : ObservableObject
                 }
 
                 HasFolderAndFileItems = FolderAndFileItems.Count > 0;
-                StatusMessage = $"{entries.Count} öğe ({ImageItems.Count} resim)";
+                _loadedItemCount = entries.Count;
+                _loadedImageCount = ImageItems.Count;
+                StatusMessage = LocalizationService.Get("Status_ItemCountWithImages", _loadedItemCount, _loadedImageCount);
                 _ = LoadThumbnailsAsync(token);
             }
             else
             {
                 HasFolderAndFileItems = false;
-                StatusMessage = $"{Items.Count} öğe";
+                _loadedItemCount = Items.Count;
+                _loadedImageCount = 0;
+                StatusMessage = LocalizationService.Get("Status_ItemCount", _loadedItemCount);
             }
 
             OnPropertyChanged(nameof(SelectionStatus));
@@ -514,6 +521,47 @@ public partial class TabViewModel : ObservableObject
             {
                 // Skip failed thumbnails.
             }
+        }
+    }
+
+    public void RefreshLocalization()
+    {
+        if (CurrentPath == PathConstants.ThisPc)
+        {
+            AddressText = ThisPcLabel;
+        }
+
+        RecomputeStatusMessage();
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(SelectionStatus));
+        NotifyEntryDisplayChanged(Items);
+        NotifyEntryDisplayChanged(FolderAndFileItems);
+        NotifyEntryDisplayChanged(ImageItems);
+    }
+
+    private static void NotifyEntryDisplayChanged(IEnumerable<FileSystemEntry> entries)
+    {
+        foreach (var entry in entries)
+        {
+            entry.NotifyDisplayChanged();
+        }
+    }
+
+    private void RecomputeStatusMessage()
+    {
+        if (IsLoading)
+        {
+            StatusMessage = LocalizationService.Get("Common_Loading");
+            return;
+        }
+
+        if (UsePicturesLayout)
+        {
+            StatusMessage = LocalizationService.Get("Status_ItemCountWithImages", _loadedItemCount, _loadedImageCount);
+        }
+        else if (_loadedItemCount > 0 || !string.IsNullOrEmpty(StatusMessage))
+        {
+            StatusMessage = LocalizationService.Get("Status_ItemCount", _loadedItemCount);
         }
     }
 

@@ -7,6 +7,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using MiniExplorer.Helpers;
 using MiniExplorer.Models;
+using MiniExplorer.Services;
 using MiniExplorer.ViewModels;
 
 namespace MiniExplorer;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
             }
         };
         UpdateSortHeaders();
+        LocalizationService.Instance.LanguageChanged += (_, _) => UpdateSortHeaders();
     }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -90,18 +92,19 @@ public partial class MainWindow : Window
 
     private void UpdateSortHeaders()
     {
-        UpdateSortHeader(NameHeader, SortField.Name, "Ad");
-        UpdateSortHeader(ModifiedHeader, SortField.Modified, "Değiştirilme");
-        UpdateSortHeader(TypeHeader, SortField.Type, "Tür");
-        UpdateSortHeader(SizeHeader, SortField.Size, "Boyut");
-        UpdateSortHeader(PicturesNameHeader, SortField.Name, "Ad");
-        UpdateSortHeader(PicturesModifiedHeader, SortField.Modified, "Değiştirilme");
-        UpdateSortHeader(PicturesTypeHeader, SortField.Type, "Tür");
-        UpdateSortHeader(PicturesSizeHeader, SortField.Size, "Boyut");
+        UpdateSortHeader(NameHeader, SortField.Name, "Column_Name");
+        UpdateSortHeader(ModifiedHeader, SortField.Modified, "Column_Modified");
+        UpdateSortHeader(TypeHeader, SortField.Type, "Column_Type");
+        UpdateSortHeader(SizeHeader, SortField.Size, "Column_Size");
+        UpdateSortHeader(PicturesNameHeader, SortField.Name, "Column_Name");
+        UpdateSortHeader(PicturesModifiedHeader, SortField.Modified, "Column_Modified");
+        UpdateSortHeader(PicturesTypeHeader, SortField.Type, "Column_Type");
+        UpdateSortHeader(PicturesSizeHeader, SortField.Size, "Column_Size");
     }
 
-    private void UpdateSortHeader(GridViewColumnHeader header, SortField field, string label)
+    private void UpdateSortHeader(GridViewColumnHeader header, SortField field, string labelKey)
     {
+        var label = LocalizationService.Get(labelKey);
         header.Content = ViewModel.SortField == field
             ? $"{label} {(ViewModel.SortAscending ? "▲" : "▼")}"
             : label;
@@ -494,11 +497,11 @@ public partial class MainWindow : Window
         }
 
         var menu = CreateContextMenu();
-        menu.Items.Add(CreateMenuItem("Aç", () => ViewModel.NavigateSidebarCommand.Execute(item)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Open"), () => ViewModel.NavigateSidebarCommand.Execute(item)));
 
         if (item.IsPinned)
         {
-            menu.Items.Add(CreateMenuItem("Sabitlemeyi kaldır", () => ViewModel.UnpinFromQuickAccessCommand.Execute(item.Path)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Unpin"), () => ViewModel.UnpinFromQuickAccessCommand.Execute(item.Path)));
         }
 
         SidebarList.ContextMenu = menu;
@@ -510,35 +513,35 @@ public partial class MainWindow : Window
 
         if (!isBackground)
         {
-            menu.Items.Add(CreateMenuItem("Aç", () => ViewModel.OpenItemCommand.Execute(folder)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Open"), () => ViewModel.OpenItemCommand.Execute(folder)));
         }
 
-        menu.Items.Add(CreateMenuItem("Yeni sekmede aç", () => ViewModel.OpenItemInNewTabCommand.Execute(folder)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_OpenNewTab"), () => ViewModel.OpenItemInNewTabCommand.Execute(folder)));
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem("Hızlı erişime sabitle", () => ViewModel.PinToQuickAccessCommand.Execute(folder)));
-        menu.Items.Add(CreateMenuItem("Yol olarak kopyala", () => ViewModel.CopyPathCommand.Execute(folder)));
-        menu.Items.Add(CreateMenuItem("VS Code ile aç", () => ViewModel.OpenWithCodeCommand.Execute(folder)));
-        menu.Items.Add(CreateMenuItem("Terminalde aç", () => ViewModel.OpenInTerminalCommand.Execute(folder)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_PinQuickAccess"), () => ViewModel.PinToQuickAccessCommand.Execute(folder)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_CopyPath"), () => ViewModel.CopyPathCommand.Execute(folder)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_OpenWithCode"), () => ViewModel.OpenWithCodeCommand.Execute(folder)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_OpenTerminal"), () => ViewModel.OpenInTerminalCommand.Execute(folder)));
 
         menu.Items.Add(new Separator());
         if (!isBackground)
         {
-            menu.Items.Add(CreateMenuItem("Kes", () => ViewModel.CutSelectionCommand.Execute(null)));
-            menu.Items.Add(CreateMenuItem("Kopyala", () => ViewModel.CopySelectionCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Cut"), () => ViewModel.CutSelectionCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Copy"), () => ViewModel.CopySelectionCommand.Execute(null)));
         }
 
-        menu.Items.Add(CreateMenuItem("Yapıştır", () => ViewModel.PasteCommand.Execute(folder.FullPath)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Paste"), () => ViewModel.PasteCommand.Execute(folder.FullPath)));
 
         if (!isBackground)
         {
             menu.Items.Add(new Separator());
-            menu.Items.Add(CreateMenuItem("Yeniden adlandır", () => ViewModel.RenameSelectionCommand.Execute(null)));
-            menu.Items.Add(CreateMenuItem("Sil", () => ViewModel.DeleteSelectionCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Rename"), () => ViewModel.RenameSelectionCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Delete"), () => ViewModel.DeleteSelectionCommand.Execute(null)));
         }
         else
         {
             menu.Items.Add(new Separator());
-            menu.Items.Add(CreateMenuItem("Yenile", () => ViewModel.RefreshCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Refresh"), () => ViewModel.RefreshCommand.Execute(null)));
         }
 
         return menu;
@@ -552,17 +555,17 @@ public partial class MainWindow : Window
 
         if (single is not null)
         {
-            menu.Items.Add(CreateMenuItem("Aç", () => ViewModel.OpenItemCommand.Execute(single)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Open"), () => ViewModel.OpenItemCommand.Execute(single)));
 
             if (!single.IsDirectory && FilePathHelper.IsExtensionlessFile(single.FullPath))
             {
-                menu.Items.Add(CreateMenuItem("Notepad++ ile düzenle",
+                menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_EditNotepad"),
                     () => ViewModel.OpenWithNotepadPlusPlusCommand.Execute(single)));
             }
 
             if (single.IsDirectory)
             {
-                menu.Items.Add(CreateMenuItem("Yeni sekmede aç", () => ViewModel.OpenItemInNewTabCommand.Execute(single)));
+                menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_OpenNewTab"), () => ViewModel.OpenItemInNewTabCommand.Execute(single)));
             }
         }
 
@@ -573,13 +576,19 @@ public partial class MainWindow : Window
                 menu.Items.Add(new Separator());
             }
 
-            var pinLabel = folders.Count == 1 ? "Hızlı erişime sabitle" : $"{folders.Count} klasörü hızlı erişime sabitle";
+            var pinLabel = folders.Count == 1
+                ? LocalizationService.Get("Menu_PinQuickAccess")
+                : LocalizationService.Get("Menu_PinFolders", folders.Count);
             menu.Items.Add(CreateMenuItem(pinLabel, () => ViewModel.PinToQuickAccessCommand.Execute(null)));
 
-            var codeLabel = folders.Count == 1 ? "VS Code ile aç" : $"{folders.Count} klasörü VS Code ile aç";
+            var codeLabel = folders.Count == 1
+                ? LocalizationService.Get("Menu_OpenWithCode")
+                : LocalizationService.Get("Menu_OpenFoldersWithCode", folders.Count);
             menu.Items.Add(CreateMenuItem(codeLabel, () => ViewModel.OpenWithCodeCommand.Execute(null)));
 
-            var terminalLabel = folders.Count == 1 ? "Terminalde aç" : $"{folders.Count} klasörde terminal aç";
+            var terminalLabel = folders.Count == 1
+                ? LocalizationService.Get("Menu_OpenTerminal")
+                : LocalizationService.Get("Menu_OpenTerminals", folders.Count);
             menu.Items.Add(CreateMenuItem(terminalLabel, () => ViewModel.OpenInTerminalCommand.Execute(null)));
         }
 
@@ -587,10 +596,10 @@ public partial class MainWindow : Window
         {
             if (CanRunAsAdmin(single.FullPath))
             {
-                menu.Items.Add(CreateMenuItem("Yönetici olarak çalıştır", () => ViewModel.RunAsAdminCommand.Execute(single)));
+                menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_RunAsAdmin"), () => ViewModel.RunAsAdminCommand.Execute(single)));
             }
 
-            menu.Items.Add(CreateMenuItem("Birlikte aç...", () => ViewModel.OpenWithDialogCommand.Execute(single)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_OpenWith"), () => ViewModel.OpenWithDialogCommand.Execute(single)));
         }
 
         if (menu.Items.Count > 0)
@@ -598,21 +607,25 @@ public partial class MainWindow : Window
             menu.Items.Add(new Separator());
         }
 
-        var copyPathLabel = selected.Count == 1 ? "Yol olarak kopyala" : $"{selected.Count} yolu kopyala";
+        var copyPathLabel = selected.Count == 1
+            ? LocalizationService.Get("Menu_CopyPath")
+            : LocalizationService.Get("Menu_CopyPaths", selected.Count);
         menu.Items.Add(CreateMenuItem(copyPathLabel, () => ViewModel.CopyPathCommand.Execute(null)));
 
         menu.Items.Add(new Separator());
-        menu.Items.Add(CreateMenuItem("Kes", () => ViewModel.CutSelectionCommand.Execute(null)));
-        menu.Items.Add(CreateMenuItem("Kopyala", () => ViewModel.CopySelectionCommand.Execute(null)));
-        menu.Items.Add(CreateMenuItem("Yapıştır", () => ViewModel.PasteCommand.Execute(null)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Cut"), () => ViewModel.CutSelectionCommand.Execute(null)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Copy"), () => ViewModel.CopySelectionCommand.Execute(null)));
+        menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Paste"), () => ViewModel.PasteCommand.Execute(null)));
         menu.Items.Add(new Separator());
 
         if (selected.Count == 1)
         {
-            menu.Items.Add(CreateMenuItem("Yeniden adlandır", () => ViewModel.RenameSelectionCommand.Execute(null)));
+            menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_Rename"), () => ViewModel.RenameSelectionCommand.Execute(null)));
         }
 
-        var deleteLabel = selected.Count == 1 ? "Sil" : $"{selected.Count} öğeyi sil";
+        var deleteLabel = selected.Count == 1
+            ? LocalizationService.Get("Menu_Delete")
+            : LocalizationService.Get("Menu_DeleteItems", selected.Count);
         menu.Items.Add(CreateMenuItem(deleteLabel, () => ViewModel.DeleteSelectionCommand.Execute(null)));
 
         return menu;

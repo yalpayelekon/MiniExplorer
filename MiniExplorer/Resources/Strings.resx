@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Common_Ready" xml:space="preserve"><value>Hazır</value></data>
+  <data name="Common_ThisPc" xml:space="preserve"><value>Bu bilgisayar</value></data>
+  <data name="Common_Loading" xml:space="preserve"><value>Yükleniyor...</value></data>
+  <data name="Common_Close" xml:space="preserve"><value>Kapat</value></data>
+  <data name="Common_OK" xml:space="preserve"><value>Tamam</value></data>
+  <data name="Common_Cancel" xml:space="preserve"><value>İptal</value></data>
+  <data name="Common_Open" xml:space="preserve"><value>Aç</value></data>
+  <data name="Settings_Title" xml:space="preserve"><value>Ayarlar</value></data>
+  <data name="Settings_Appearance" xml:space="preserve"><value>Görünüm</value></data>
+  <data name="Settings_AppearanceHint" xml:space="preserve"><value>Uygulamanın renk paletini, dilini ve içerik ölçeğini seçin.</value></data>
+  <data name="Settings_Theme" xml:space="preserve"><value>Tema</value></data>
+  <data name="Settings_Language" xml:space="preserve"><value>Dil</value></data>
+  <data name="Settings_LanguageTurkish" xml:space="preserve"><value>Türkçe</value></data>
+  <data name="Settings_LanguageEnglish" xml:space="preserve"><value>English</value></data>
+  <data name="Settings_IconSize" xml:space="preserve"><value>İkon boyutu</value></data>
+  <data name="Settings_ThemeDark" xml:space="preserve"><value>Koyu</value></data>
+  <data name="Settings_ThemeBlue" xml:space="preserve"><value>Mavi</value></data>
+  <data name="Settings_ThemeAmoled" xml:space="preserve"><value>AMOLED</value></data>
+  <data name="Settings_ThemeNord" xml:space="preserve"><value>Nord</value></data>
+  <data name="Settings_ThemeDracula" xml:space="preserve"><value>Dracula</value></data>
+  <data name="Settings_ThemeLight" xml:space="preserve"><value>Açık</value></data>
+  <data name="Settings_IconSmall" xml:space="preserve"><value>Küçük</value></data>
+  <data name="Settings_IconMedium" xml:space="preserve"><value>Orta</value></data>
+  <data name="Settings_IconLarge" xml:space="preserve"><value>Büyük</value></data>
+  <data name="Settings_HeaderSection" xml:space="preserve"><value>Üst bölüm</value></data>
+  <data name="Settings_HeaderHint" xml:space="preserve"><value>Sekme çubuğunun görünümünü ve araç düğmelerini özelleştirin.</value></data>
+  <data name="Settings_HeaderStyle" xml:space="preserve"><value>Header stili</value></data>
+  <data name="Settings_HeaderDefault" xml:space="preserve"><value>Varsayılan</value></data>
+  <data name="Settings_HeaderDarker" xml:space="preserve"><value>Daha koyu</value></data>
+  <data name="Settings_HeaderAccent" xml:space="preserve"><value>Vurgu</value></data>
+  <data name="Settings_Density" xml:space="preserve"><value>Yoğunluk</value></data>
+  <data name="Settings_DensityCompact" xml:space="preserve"><value>Kompakt</value></data>
+  <data name="Settings_DensityNormal" xml:space="preserve"><value>Normal</value></data>
+  <data name="Settings_DensitySpacious" xml:space="preserve"><value>Geniş</value></data>
+  <data name="Settings_ToolbarButtons" xml:space="preserve"><value>Araç çubuğu düğmeleri</value></data>
+  <data name="Settings_ShowBack" xml:space="preserve"><value>Geri</value></data>
+  <data name="Settings_ShowForward" xml:space="preserve"><value>İleri</value></data>
+  <data name="Settings_ShowUp" xml:space="preserve"><value>Yukarı</value></data>
+  <data name="Settings_ShowRefresh" xml:space="preserve"><value>Yenile</value></data>
+  <data name="Settings_ShowCopyPath" xml:space="preserve"><value>Yolu kopyala</value></data>
+  <data name="Settings_ShowExplorer" xml:space="preserve"><value>Explorer'da aç</value></data>
+  <data name="Settings_SettingsAlwaysVisible" xml:space="preserve"><value>Ayarlar düğmesi her zaman görünür kalır.</value></data>
+  <data name="Sidebar_Home" xml:space="preserve"><value>Giriş</value></data>
+  <data name="Sidebar_Desktop" xml:space="preserve"><value>Masaüstü</value></data>
+  <data name="Sidebar_Downloads" xml:space="preserve"><value>İndirilenler</value></data>
+  <data name="Sidebar_Documents" xml:space="preserve"><value>Belgeler</value></data>
+  <data name="Sidebar_Pictures" xml:space="preserve"><value>Resimler</value></data>
+  <data name="Sidebar_QuickAccess" xml:space="preserve"><value>Hızlı erişim</value></data>
+  <data name="Sidebar_ThisPc" xml:space="preserve"><value>Bu bilgisayar</value></data>
+  <data name="Toolbar_NewTab" xml:space="preserve"><value>Yeni sekme (Ctrl+T)</value></data>
+  <data name="Toolbar_CloseTab" xml:space="preserve"><value>Sekmeyi kapat (Ctrl+W)</value></data>
+  <data name="Toolbar_Refresh" xml:space="preserve"><value>Yenile (F5)</value></data>
+  <data name="Toolbar_CopyPath" xml:space="preserve"><value>Yolu kopyala</value></data>
+  <data name="Toolbar_OpenExplorer" xml:space="preserve"><value>Explorer'da aç</value></data>
+  <data name="Toolbar_Settings" xml:space="preserve"><value>Ayarlar</value></data>
+  <data name="Toolbar_Filter" xml:space="preserve"><value>Mevcut klasörde filtrele</value></data>
+  <data name="Column_Name" xml:space="preserve"><value>Ad</value></data>
+  <data name="Column_Modified" xml:space="preserve"><value>Değiştirilme</value></data>
+  <data name="Column_Type" xml:space="preserve"><value>Tür</value></data>
+  <data name="Column_Size" xml:space="preserve"><value>Boyut</value></data>
+  <data name="Menu_Open" xml:space="preserve"><value>Aç</value></data>
+  <data name="Menu_OpenNewTab" xml:space="preserve"><value>Yeni sekmede aç</value></data>
+  <data name="Menu_PinQuickAccess" xml:space="preserve"><value>Hızlı erişime sabitle</value></data>
+  <data name="Menu_PinFolders" xml:space="preserve"><value>{0} klasörü hızlı erişime sabitle</value></data>
+  <data name="Menu_CopyPath" xml:space="preserve"><value>Yol olarak kopyala</value></data>
+  <data name="Menu_CopyPaths" xml:space="preserve"><value>{0} yolu kopyala</value></data>
+  <data name="Menu_OpenWithCode" xml:space="preserve"><value>VS Code ile aç</value></data>
+  <data name="Menu_OpenFoldersWithCode" xml:space="preserve"><value>{0} klasörü VS Code ile aç</value></data>
+  <data name="Menu_OpenTerminal" xml:space="preserve"><value>Terminalde aç</value></data>
+  <data name="Menu_OpenTerminals" xml:space="preserve"><value>{0} klasörde terminal aç</value></data>
+  <data name="Menu_Cut" xml:space="preserve"><value>Kes</value></data>
+  <data name="Menu_Copy" xml:space="preserve"><value>Kopyala</value></data>
+  <data name="Menu_Paste" xml:space="preserve"><value>Yapıştır</value></data>
+  <data name="Menu_Rename" xml:space="preserve"><value>Yeniden adlandır</value></data>
+  <data name="Menu_Delete" xml:space="preserve"><value>Sil</value></data>
+  <data name="Menu_DeleteItems" xml:space="preserve"><value>{0} öğeyi sil</value></data>
+  <data name="Menu_Refresh" xml:space="preserve"><value>Yenile</value></data>
+  <data name="Menu_Unpin" xml:space="preserve"><value>Sabitlemeyi kaldır</value></data>
+  <data name="Menu_EditNotepad" xml:space="preserve"><value>Notepad++ ile düzenle</value></data>
+  <data name="Menu_RunAsAdmin" xml:space="preserve"><value>Yönetici olarak çalıştır</value></data>
+  <data name="Menu_OpenWith" xml:space="preserve"><value>Birlikte aç...</value></data>
+  <data name="Dialog_RenameTitle" xml:space="preserve"><value>Yeniden adlandır</value></data>
+  <data name="Dialog_NewName" xml:space="preserve"><value>Yeni ad:</value></data>
+  <data name="Dialog_OpenWithOpen" xml:space="preserve"><value>Aç</value></data>
+  <data name="Dialog_OpenWithOther" xml:space="preserve"><value>Başka uygulama...</value></data>
+  <data name="Status_ItemsSelected" xml:space="preserve"><value>{0} öğe seçildi</value></data>
+  <data name="Status_ItemCount" xml:space="preserve"><value>{0} öğe</value></data>
+  <data name="Status_ItemCountWithImages" xml:space="preserve"><value>{0} öğe ({1} resim)</value></data>
+  <data name="Status_PathCopyFailed" xml:space="preserve"><value>Bu konumun yolu kopyalanamıyor.</value></data>
+  <data name="Status_ExplorerOpenFailed" xml:space="preserve"><value>Bu konum Explorer'da açılamıyor.</value></data>
+  <data name="Status_OpenedInExplorer" xml:space="preserve"><value>Explorer'da açıldı.</value></data>
+  <data name="Status_InvalidPath" xml:space="preserve"><value>Geçersiz klasör yolu.</value></data>
+  <data name="Status_ItemsCut" xml:space="preserve"><value>{0} öğe kesildi.</value></data>
+  <data name="Status_ItemsCopied" xml:space="preserve"><value>{0} öğe kopyalandı.</value></data>
+  <data name="Status_PasteInvalidFolder" xml:space="preserve"><value>Yapıştırma için geçerli bir klasör seçin.</value></data>
+  <data name="Status_MoveComplete" xml:space="preserve"><value>Taşıma tamamlandı.</value></data>
+  <data name="Status_PasteComplete" xml:space="preserve"><value>Yapıştırma tamamlandı.</value></data>
+  <data name="Status_ItemsDeleted" xml:space="preserve"><value>{0} öğe geri dönüşüm kutusuna gönderildi.</value></data>
+  <data name="Status_RenameSingleSelect" xml:space="preserve"><value>Yeniden adlandırma için tek bir öğe seçin.</value></data>
+  <data name="Status_Renamed" xml:space="preserve"><value>Yeniden adlandırıldı.</value></data>
+  <data name="Status_PathCopied" xml:space="preserve"><value>Yol panoya kopyalandı.</value></data>
+  <data name="Status_PathsCopied" xml:space="preserve"><value>{0} yol panoya kopyalandı.</value></data>
+  <data name="Status_Pinned" xml:space="preserve"><value>Hızlı erişime sabitlendi.</value></data>
+  <data name="Status_FoldersPinned" xml:space="preserve"><value>{0} klasör hızlı erişime sabitlendi.</value></data>
+  <data name="Status_Unpinned" xml:space="preserve"><value>Sabitleme kaldırıldı.</value></data>
+  <data name="Status_OpenedWithCode" xml:space="preserve"><value>VS Code ile açıldı.</value></data>
+  <data name="Status_FoldersOpenedWithCode" xml:space="preserve"><value>{0} klasör VS Code ile açıldı.</value></data>
+  <data name="Status_OpenedNotepad" xml:space="preserve"><value>Notepad++ ile açıldı.</value></data>
+  <data name="Status_TerminalFailed" xml:space="preserve"><value>Terminal bu konumda açılamıyor.</value></data>
+  <data name="Status_TerminalOpened" xml:space="preserve"><value>Terminal açıldı.</value></data>
+  <data name="Status_TerminalsOpened" xml:space="preserve"><value>{0} klasörde terminal açıldı.</value></data>
+  <data name="Status_RunAsAdmin" xml:space="preserve"><value>Yönetici olarak başlatıldı.</value></data>
+  <data name="FileType_Folder" xml:space="preserve"><value>Dosya klasörü</value></data>
+  <data name="FileType_File" xml:space="preserve"><value>Dosya</value></data>
+  <data name="FileType_Extension" xml:space="preserve"><value>{0} dosyası</value></data>
+</root>

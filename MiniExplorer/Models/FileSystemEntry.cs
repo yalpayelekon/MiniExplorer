@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Media;
+using MiniExplorer.Services;
 
 namespace MiniExplorer.Models;
 
@@ -34,8 +35,16 @@ public sealed class FileSystemEntry : INotifyPropertyChanged
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
     public string TypeDisplay => IsDirectory
-        ? "Dosya klasörü"
-        : string.IsNullOrEmpty(Extension) ? "Dosya" : $"{Extension.TrimStart('.').ToUpperInvariant()} dosyası";
+        ? LocalizationService.Get("FileType_Folder")
+        : string.IsNullOrEmpty(Extension)
+            ? LocalizationService.Get("FileType_File")
+            : LocalizationService.Get("FileType_Extension", Extension.TrimStart('.').ToUpperInvariant());
+
+    public void NotifyDisplayChanged()
+    {
+        OnPropertyChanged(nameof(TypeDisplay));
+        OnPropertyChanged(nameof(ModifiedDisplay));
+    }
 
     public string SizeDisplay => IsDirectory || Size is null ? string.Empty : FormatSize(Size.Value);
 

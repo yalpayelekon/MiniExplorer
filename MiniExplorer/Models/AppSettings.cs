@@ -39,8 +39,15 @@ public enum SortField
     Size
 }
 
+public enum LanguagePreset
+{
+    Turkish,
+    English
+}
+
 public sealed class AppSettings
 {
+    public LanguagePreset Language { get; set; } = LanguagePreset.Turkish;
     public ThemePreset Theme { get; set; } = ThemePreset.Dark;
     public IconSizePreset IconSize { get; set; } = IconSizePreset.Medium;
     public HeaderStylePreset HeaderStyle { get; set; } = HeaderStylePreset.Default;

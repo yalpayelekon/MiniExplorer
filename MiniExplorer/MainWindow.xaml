@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:MiniExplorer.Models"
         xmlns:vm="clr-namespace:MiniExplorer.ViewModels"
+        xmlns:loc="clr-namespace:MiniExplorer.Localization"
         Title="Mini Explorer"
         Icon="pack://application:,,,/Assets/app.ico"
         Height="720"
@@ -85,7 +86,7 @@
                         Content="+"
                         Margin="8,0,0,6"
                         Command="{Binding NewTabCommand}"
-                        ToolTip="Yeni sekme (Ctrl+T)"/>
+                        ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_NewTab}"/>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled"
                               Margin="0,0,0,0">
@@ -157,7 +158,7 @@
                                                 VerticalAlignment="Center"
                                                 Click="CloseTab_Click"
                                                 Tag="{Binding}"
-                                                ToolTip="Sekmeyi kapat (Ctrl+W)">
+                                                ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_CloseTab}">
                                             <Button.Style>
                                                 <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
                                                     <Setter Property="Foreground" Value="{DynamicResource Brush.TabInactiveForeground}"/>
@@ -214,23 +215,23 @@
                             Content="↻"
                             Visibility="{Binding DataContext.ShowRefreshButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding DataContext.RefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            ToolTip="Yenile (F5)"/>
+                            ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Refresh}"/>
                     <Button Style="{StaticResource ToolbarButtonStyle}"
                             Content="⧉"
                             Visibility="{Binding DataContext.ShowCopyPathButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding DataContext.CopyCurrentPathCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            ToolTip="Yolu kopyala"/>
+                            ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_CopyPath}"/>
                     <Button Style="{StaticResource ToolbarButtonStyle}"
                             FontFamily="Segoe MDL2 Assets"
                             Content="&#xE838;"
                             Visibility="{Binding DataContext.ShowExplorerButton, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding DataContext.OpenCurrentPathInExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            ToolTip="Explorer'da aç"/>
+                            ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_OpenExplorer}"/>
                     <Button Style="{StaticResource ToolbarButtonStyle}"
                             FontFamily="Segoe MDL2 Assets"
                             Content="&#xE713;"
                             Command="{Binding DataContext.OpenSettingsCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                            ToolTip="Ayarlar"/>
+                            ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Settings}"/>
                 </StackPanel>
                 <TextBox Grid.Column="1"
                          Style="{StaticResource ToolbarTextBoxStyle}"
@@ -239,7 +240,7 @@
                 <Border Grid.Column="2"
                         Style="{StaticResource ToolbarFilterHostStyle}"
                         Margin="10,0,0,0"
-                        ToolTip="Mevcut klasörde filtrele">
+                        ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_Filter}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -496,7 +497,7 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <TextBlock Text="Yükleniyor..."
+                <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Common_Loading}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
                            Foreground="{DynamicResource Brush.ForegroundMuted}"

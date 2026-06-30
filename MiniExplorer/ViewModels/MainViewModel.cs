@@ -5,6 +5,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MiniExplorer.Helpers;
+using MiniExplorer.Localization;
 using MiniExplorer.Models;
 using MiniExplorer.Services;
 using MiniExplorer.Views;
@@ -22,6 +23,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SettingsService _settingsService = new();
     private CancellationTokenSource? _settingsSaveCts;
     private bool _suppressSortChange;
+    private bool _suppressLanguageChange;
 
     public MainViewModel()
     {
@@ -45,7 +47,10 @@ public partial class MainViewModel : ObservableObject
     private TabViewModel? _activeTab;
 
     [ObservableProperty]
-    private string _globalStatus = "Hazır";
+    private string _globalStatus = string.Empty;
+
+    [ObservableProperty]
+    private LanguagePreset _language = LanguagePreset.Turkish;
 
     [ObservableProperty]
     private ThemePreset _theme = ThemePreset.Dark;
@@ -185,6 +190,30 @@ public partial class MainViewModel : ObservableObject
     {
         ApplyTheme(value);
         ScheduleSettingsSave();
+    }
+
+    partial void OnLanguageChanged(LanguagePreset value)
+    {
+        if (_suppressLanguageChange)
+        {
+            return;
+        }
+
+        ApplyLanguage();
+        ScheduleSettingsSave();
+    }
+
+    public void ApplyLanguage()
+    {
+        LocalizationService.Instance.SetLanguage(Language);
+        LocalizationNotifier.Instance.BumpRevision();
+        Sidebar.Refresh();
+        foreach (var tab in Tabs)
+        {
+            tab.RefreshLocalization();
+        }
+
+        GlobalStatus = ActiveTab?.SelectionStatus ?? LocalizationService.Get("Common_Ready");
     }
 
     partial void OnHeaderStyleChanged(HeaderStylePreset value)
@@ -361,19 +390,30 @@ public partial class MainViewModel : ObservableObject
     private void LoadSettings()
     {
         var settings = _settingsService.Load();
-        Theme = settings.Theme;
-        IconSize = settings.IconSize;
-        HeaderStyle = settings.HeaderStyle;
-        HeaderDensity = settings.HeaderDensity;
-        ShowBackButton = settings.ShowBackButton;
-        ShowForwardButton = settings.ShowForwardButton;
-        ShowUpButton = settings.ShowUpButton;
-        ShowRefreshButton = settings.ShowRefreshButton;
-        ShowCopyPathButton = settings.ShowCopyPathButton;
-        ShowExplorerButton = settings.ShowExplorerButton;
-        SidebarWidth = Math.Clamp(settings.SidebarWidth, 180, 420);
-        SortField = settings.SortField;
-        SortAscending = settings.SortAscending;
+        _suppressLanguageChange = true;
+        try
+        {
+            Language = settings.Language;
+            Theme = settings.Theme;
+            IconSize = settings.IconSize;
+            HeaderStyle = settings.HeaderStyle;
+            HeaderDensity = settings.HeaderDensity;
+            ShowBackButton = settings.ShowBackButton;
+            ShowForwardButton = settings.ShowForwardButton;
+            ShowUpButton = settings.ShowUpButton;
+            ShowRefreshButton = settings.ShowRefreshButton;
+            ShowCopyPathButton = settings.ShowCopyPathButton;
+            ShowExplorerButton = settings.ShowExplorerButton;
+            SidebarWidth = Math.Clamp(settings.SidebarWidth, 180, 420);
+            SortField = settings.SortField;
+            SortAscending = settings.SortAscending;
+        }
+        finally
+        {
+            _suppressLanguageChange = false;
+        }
+
+        ApplyLanguage();
         ApplyTheme(Theme);
     }
 
@@ -421,6 +461,7 @@ public partial class MainViewModel : ObservableObject
         {
             _settingsService.Save(new AppSettings
             {
+                Language = Language,
                 Theme = Theme,
                 IconSize = IconSize,
                 HeaderStyle = HeaderStyle,
@@ -681,7 +722,7 @@ public partial class MainViewModel : ObservableObject
         var entry = GetCurrentFolderEntry();
         if (entry is null)
         {
-            GlobalStatus = "Bu konumun yolu kopyalanamıyor.";
+            GlobalStatus = LocalizationService.Get("Status_PathCopyFailed");
             return;
         }
 
@@ -694,14 +735,14 @@ public partial class MainViewModel : ObservableObject
         var entry = GetCurrentFolderEntry();
         if (entry is null)
         {
-            GlobalStatus = "Bu konum Explorer'da açılamıyor.";
+            GlobalStatus = LocalizationService.Get("Status_ExplorerOpenFailed");
             return;
         }
 
         try
         {
             _shellService.OpenInExplorer(entry.FullPath);
-            GlobalStatus = "Explorer'da açıldı.";
+            GlobalStatus = LocalizationService.Get("Status_OpenedInExplorer");
         }
         catch (Exception ex)
         {
@@ -718,7 +759,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         var text = ActiveTab.AddressText.Trim();
-        if (string.Equals(text, "Bu bilgisayar", StringComparison.OrdinalIgnoreCase))
+        if (LocalizationService.IsThisPcDisplay(text))
         {
             await ActiveTab.NavigateToAsync(PathConstants.ThisPc);
         }
@@ -728,7 +769,7 @@ public partial class MainViewModel : ObservableObject
         }
         else
         {
-            GlobalStatus = "Geçersiz klasör yolu.";
+            GlobalStatus = LocalizationService.Get("Status_InvalidPath");
             return;
         }
 
@@ -789,7 +830,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _clipboardService.Cut(paths);
-        GlobalStatus = $"{paths.Count} öğe kesildi.";
+        GlobalStatus = LocalizationService.Get("Status_ItemsCut", paths.Count);
     }
 
     [RelayCommand]
@@ -802,7 +843,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         _clipboardService.Copy(paths);
-        GlobalStatus = $"{paths.Count} öğe kopyalandı.";
+        GlobalStatus = LocalizationService.Get("Status_ItemsCopied", paths.Count);
     }
 
     [RelayCommand]
@@ -818,7 +859,7 @@ public partial class MainViewModel : ObservableObject
 
         if (destination is null || !Directory.Exists(destination))
         {
-            GlobalStatus = "Yapıştırma için geçerli bir klasör seçin.";
+            GlobalStatus = LocalizationService.Get("Status_PasteInvalidFolder");
             return;
         }
 
@@ -832,7 +873,9 @@ public partial class MainViewModel : ObservableObject
             }
 
             await ActiveTab.RefreshAsync();
-            GlobalStatus = move ? "Taşıma tamamlandı." : "Yapıştırma tamamlandı.";
+            GlobalStatus = move
+                ? LocalizationService.Get("Status_MoveComplete")
+                : LocalizationService.Get("Status_PasteComplete");
         }
         catch (Exception ex)
         {
@@ -857,7 +900,7 @@ public partial class MainViewModel : ObservableObject
                 await ActiveTab.RefreshAsync();
             }
 
-            GlobalStatus = $"{paths.Count} öğe geri dönüşüm kutusuna gönderildi.";
+            GlobalStatus = LocalizationService.Get("Status_ItemsDeleted", paths.Count);
         }
         catch (Exception ex)
         {
@@ -870,7 +913,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (ActiveTab?.SelectedItems.Count != 1 || ActiveTab.SelectedItems[0] is not { } entry)
         {
-            GlobalStatus = "Yeniden adlandırma için tek bir öğe seçin.";
+            GlobalStatus = LocalizationService.Get("Status_RenameSingleSelect");
             return;
         }
 
@@ -888,7 +931,7 @@ public partial class MainViewModel : ObservableObject
         {
             _fileSystemService.Rename(entry.FullPath, dialog.NewName.Trim());
             await ActiveTab.RefreshAsync();
-            GlobalStatus = "Yeniden adlandırıldı.";
+            GlobalStatus = LocalizationService.Get("Status_Renamed");
         }
         catch (Exception ex)
         {
@@ -920,8 +963,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             GlobalStatus = paths.Count == 1
-                ? "Yol panoya kopyalandı."
-                : $"{paths.Count} yol panoya kopyalandı.";
+                ? LocalizationService.Get("Status_PathCopied")
+                : LocalizationService.Get("Status_PathsCopied", paths.Count);
         }
         catch (Exception ex)
         {
@@ -947,8 +990,8 @@ public partial class MainViewModel : ObservableObject
         }
 
         GlobalStatus = folders.Count == 1
-            ? "Hızlı erişime sabitlendi."
-            : $"{folders.Count} klasör hızlı erişime sabitlendi.";
+            ? LocalizationService.Get("Status_Pinned")
+            : LocalizationService.Get("Status_FoldersPinned", folders.Count);
     }
 
     [RelayCommand]
@@ -960,7 +1003,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         Sidebar.Unpin(path);
-        GlobalStatus = "Sabitleme kaldırıldı.";
+        GlobalStatus = LocalizationService.Get("Status_Unpinned");
     }
 
     [RelayCommand]
@@ -983,8 +1026,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             GlobalStatus = folders.Count == 1
-                ? "VS Code ile açıldı."
-                : $"{folders.Count} klasör VS Code ile açıldı.";
+                ? LocalizationService.Get("Status_OpenedWithCode")
+                : LocalizationService.Get("Status_FoldersOpenedWithCode", folders.Count);
         }
         catch (Exception ex)
         {
@@ -1003,7 +1046,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             _shellService.OpenWithNotepadPlusPlus(entry.FullPath);
-            GlobalStatus = "Notepad++ ile açıldı.";
+            GlobalStatus = LocalizationService.Get("Status_OpenedNotepad");
         }
         catch (Exception ex)
         {
@@ -1020,7 +1063,7 @@ public partial class MainViewModel : ObservableObject
 
         if (folders.Count == 0)
         {
-            GlobalStatus = "Terminal bu konumda açılamıyor.";
+            GlobalStatus = LocalizationService.Get("Status_TerminalFailed");
             return;
         }
 
@@ -1032,8 +1075,8 @@ public partial class MainViewModel : ObservableObject
             }
 
             GlobalStatus = folders.Count == 1
-                ? "Terminal açıldı."
-                : $"{folders.Count} klasörde terminal açıldı.";
+                ? LocalizationService.Get("Status_TerminalOpened")
+                : LocalizationService.Get("Status_TerminalsOpened", folders.Count);
         }
         catch (Exception ex)
         {
@@ -1075,7 +1118,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             _shellService.RunAsAdmin(entry.FullPath);
-            GlobalStatus = "Yönetici olarak başlatıldı.";
+            GlobalStatus = LocalizationService.Get("Status_RunAsAdmin");
         }
         catch (System.ComponentModel.Win32Exception)
         {

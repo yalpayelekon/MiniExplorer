@@ -5,6 +5,7 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibility"/>
+        <converters:LocConverter x:Key="Loc"/>
 
         <SolidColorBrush x:Key="Brush.Background" Color="#1E1E1E"/>
         <SolidColorBrush x:Key="Brush.Sidebar" Color="#252526"/>
@@ -138,8 +139,7 @@
                                         CornerRadius="4"
                                         Margin="0,2,0,0">
                                     <ScrollViewer SnapsToDevicePixels="True">
-                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"
-                                                        IsItemsHost="True"/>
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                     </ScrollViewer>
                                 </Border>
                             </Popup>
