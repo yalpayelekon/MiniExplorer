@@ -244,6 +244,7 @@ public partial class TabViewModel : ObservableObject
         foreach (var entry in Items)
         {
             entry.TileIcon = null;
+            entry.Thumbnail = null;
         }
 
         if (ViewMode == ViewMode.Icons && Items.Count > 0)
@@ -526,7 +527,6 @@ public partial class TabViewModel : ObservableObject
                 }
                 else
                 {
-                    _thumbnailService.Invalidate(changedPaths);
                     _directoryCacheService.InvalidateDirectory(CurrentPath);
                     await LoadAsync(showLoading: false, restoreSelection: true);
                 }
@@ -571,7 +571,6 @@ public partial class TabViewModel : ObservableObject
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var removedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var refreshedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _thumbnailService.Invalidate(changedPaths);
 
         foreach (var path in changedPaths)
         {
@@ -691,7 +690,7 @@ public partial class TabViewModel : ObservableObject
         }
         else
         {
-            _thumbnailService.Invalidate([updated.FullPath]);
+            updated.Thumbnail = null;
             updated.TileIcon = null;
         }
 

@@ -15,7 +15,7 @@ namespace MiniExplorer.Services;
 
 public sealed class ShellService
 {
-    private readonly ConcurrentDictionary<string, ImageSource> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, ImageSource> _listIconCache = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly string[] CodeCandidatePaths =
     [
@@ -40,33 +40,20 @@ public sealed class ShellService
             @"Programs\Notepad++\notepad++.exe")
     ];
 
-    public ImageSource GetIcon(string path, bool isDirectory) => GetListIcon(path, isDirectory);
+    public ImageSource GetIcon(string path, bool isDirectory) => GetListIcon(path, isDirectory) ?? CreateFallbackIcon(16);
 
-    public ImageSource GetListIcon(string path, bool isDirectory)
+    public ImageSource? GetListIcon(string path, bool isDirectory)
     {
         var cacheKey = $"list|{path}|{isDirectory}";
-        return _iconCache.GetOrAdd(cacheKey, _ => LoadSmallIcon(path, isDirectory));
+        return _listIconCache.GetOrAdd(cacheKey, _ => LoadSmallIcon(path, isDirectory));
     }
 
     public ImageSource GetTileIcon(string path, bool isDirectory, double logicalSize = 187)
     {
         var dpiScale = DpiHelper.Scale;
         var physicalSize = Math.Max((int)Math.Ceiling(logicalSize * dpiScale), 32);
-        var dpiKey = BitConverter.DoubleToInt64Bits(dpiScale);
-        var cacheKey = $"tile|{physicalSize}|{dpiKey}|{path}|{isDirectory}";
-        return _iconCache.GetOrAdd(cacheKey, _ =>
-        {
-            var (source, _) = LoadTileIconWithSource(path, isDirectory, physicalSize);
-            return source;
-        });
-    }
-
-    public void InvalidateTileIconCache()
-    {
-        foreach (var key in _iconCache.Keys.Where(key => key.StartsWith("tile|", StringComparison.Ordinal)).ToArray())
-        {
-            _iconCache.TryRemove(key, out _);
-        }
+        var (source, _) = LoadTileIconWithSource(path, isDirectory, physicalSize);
+        return source;
     }
 
     public void OpenDefault(string path)

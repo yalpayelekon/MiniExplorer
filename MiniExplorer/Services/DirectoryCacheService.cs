@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using MiniExplorer.Helpers;
 using MiniExplorer.Models;
@@ -6,15 +7,40 @@ namespace MiniExplorer.Services;
 
 public sealed class DirectoryCacheService
 {
-    private const int MaxDirectories = 16;
-    private const int MaxTotalEntries = 100_000;
+    private int _maxDirectories = 16;
+    private int _maxTotalEntries = 100_000;
 
     private readonly Dictionary<string, CachedListing> _cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly LinkedList<string> _lru = new();
     private readonly object _lock = new();
     private int _totalEntries;
+    private int _hits;
+    private int _misses;
 
-    public bool IsCacheable(string path) => PicturesPathHelper.IsUnderPictures(path);
+    public bool IsCacheable(string path)
+    {
+        // Cache all directories except ThisPC and root paths
+        if (string.IsNullOrWhiteSpace(path) || path == PathConstants.ThisPc)
+        {
+            return false;
+        }
+
+        try
+        {
+            var normalizedPath = Path.GetFullPath(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            // Don't cache root drives (e.g., "C:\")
+            if (normalizedPath.Length <= 3 && normalizedPath.EndsWith(Path.VolumeSeparatorChar.ToString()))
+            {
+                return false;
+            }
+
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public bool Contains(string path)
     {
@@ -26,6 +52,23 @@ public sealed class DirectoryCacheService
         lock (_lock)
         {
             return _cache.ContainsKey(NormalizePath(path));
+        }
+    }
+    
+    public (int Hits, int Misses, int Count) GetStatistics()
+    {
+        return (_hits, _misses, _cache.Count);
+    }
+    
+    public void Clear()
+    {
+        lock (_lock)
+        {
+            _cache.Clear();
+            _lru.Clear();
+            _totalEntries = 0;
+            _hits = 0;
+            _misses = 0;
         }
     }
 
@@ -42,18 +85,20 @@ public sealed class DirectoryCacheService
         {
             if (!_cache.TryGetValue(key, out var cached))
             {
+                Interlocked.Increment(ref _misses);
                 return false;
             }
 
             Touch(key);
             entries = cached.Entries;
+            Interlocked.Increment(ref _hits);
             return true;
         }
     }
 
     public void Set(string path, IReadOnlyList<FileSystemEntry> entries)
     {
-        if (!IsCacheable(path) || entries.Count > MaxTotalEntries)
+        if (!IsCacheable(path) || entries.Count > _maxTotalEntries)
         {
             return;
         }
@@ -72,7 +117,7 @@ public sealed class DirectoryCacheService
             _lru.AddLast(key);
             _totalEntries += clones.Count;
 
-            while (_cache.Count > MaxDirectories || _totalEntries > MaxTotalEntries)
+            while (_cache.Count > _maxDirectories || _totalEntries > _maxTotalEntries)
             {
                 var oldest = _lru.First?.Value;
                 if (oldest is null)
@@ -87,6 +132,38 @@ public sealed class DirectoryCacheService
                 }
             }
         }
+        
+        LogDebug($"Cached directory: {key} ({clones.Count} entries)");
+    }
+    
+    public void UpdateCacheLimits(int maxDirectories, int maxTotalEntries)
+    {
+        if (maxDirectories < 1)
+        {
+            maxDirectories = 1;
+        }
+        if (maxTotalEntries < 100)
+        {
+            maxTotalEntries = 100;
+        }
+
+        _maxDirectories = maxDirectories;
+        _maxTotalEntries = maxTotalEntries;
+        
+        // Trigger eviction if currently over limits
+        lock (_lock)
+        {
+            while ((_cache.Count > _maxDirectories || _totalEntries > _maxTotalEntries) && _lru.First is { } oldest)
+            {
+                _lru.RemoveFirst();
+                if (_cache.Remove(oldest.Value, out var removed))
+                {
+                    _totalEntries -= removed.Entries.Count;
+                }
+            }
+        }
+        
+        LogDebug($"Updated directory cache limits: {maxDirectories} dirs, {maxTotalEntries:N0} entries");
     }
 
     public void InvalidateDirectory(string directoryPath)
@@ -120,6 +197,13 @@ public sealed class DirectoryCacheService
     {
         _lru.Remove(key);
         _lru.AddLast(key);
+    }
+    
+    [Conditional("DEBUG")]
+    private static void LogDebug(string message)
+    {
+        // Debug-only logging - no-op in release builds
+        System.Diagnostics.Debug.WriteLine($"[DirectoryCache] {message}");
     }
 
     private static string NormalizePath(string path) =>

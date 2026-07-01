@@ -68,4 +68,7 @@ public sealed class AppSettings
     public SortField SortField { get; set; } = SortField.Name;
     public bool SortAscending { get; set; } = true;
     public ViewMode ViewMode { get; set; } = ViewMode.List;
+
+    public int DirectoryCacheMaxDirectories { get; set; } = 16;
+    public int DirectoryCacheMaxTotalEntries { get; set; } = 100_000;
 }

@@ -264,7 +264,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ThumbnailImageHeight));
         OnPropertyChanged(nameof(TileIconLogicalSize));
         OnPropertyChanged(nameof(TileIconDisplaySize));
-        _shellService.InvalidateTileIconCache();
         foreach (var tab in Tabs)
         {
             tab.SetTileIconLogicalSize(TileIconLogicalSize);
@@ -274,7 +273,6 @@ public partial class MainViewModel : ObservableObject
 
     internal void HandleDpiChanged()
     {
-        _shellService.InvalidateTileIconCache();
         foreach (var tab in Tabs)
         {
             tab.ReloadTileIconsForDpiChange();
@@ -453,6 +451,9 @@ public partial class MainViewModel : ObservableObject
             SortField = settings.SortField;
             SortAscending = settings.SortAscending;
             ViewMode = settings.ViewMode;
+            
+            // Apply dynamic cache limits
+            _directoryCacheService.UpdateCacheLimits(settings.DirectoryCacheMaxDirectories, settings.DirectoryCacheMaxTotalEntries);
         }
         finally
         {
@@ -520,24 +521,23 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            _settingsService.Save(new AppSettings
-            {
-                Language = Language,
-                Theme = Theme,
-                IconSize = IconSize,
-                HeaderStyle = HeaderStyle,
-                HeaderDensity = HeaderDensity,
-                ShowBackButton = ShowBackButton,
-                ShowForwardButton = ShowForwardButton,
-                ShowUpButton = ShowUpButton,
-                ShowRefreshButton = ShowRefreshButton,
-                ShowCopyPathButton = ShowCopyPathButton,
-                ShowExplorerButton = ShowExplorerButton,
-                SidebarWidth = Math.Clamp(SidebarWidth, 180, 420),
-                SortField = SortField,
-                SortAscending = SortAscending,
-                ViewMode = ViewMode
-            });
+            var settings = _settingsService.Load();
+            settings.Language = Language;
+            settings.Theme = Theme;
+            settings.IconSize = IconSize;
+            settings.HeaderStyle = HeaderStyle;
+            settings.HeaderDensity = HeaderDensity;
+            settings.ShowBackButton = ShowBackButton;
+            settings.ShowForwardButton = ShowForwardButton;
+            settings.ShowUpButton = ShowUpButton;
+            settings.ShowRefreshButton = ShowRefreshButton;
+            settings.ShowCopyPathButton = ShowCopyPathButton;
+            settings.ShowExplorerButton = ShowExplorerButton;
+            settings.SidebarWidth = Math.Clamp(SidebarWidth, 180, 420);
+            settings.SortField = SortField;
+            settings.SortAscending = SortAscending;
+            settings.ViewMode = ViewMode;
+            _settingsService.Save(settings);
         }
         catch
         {
