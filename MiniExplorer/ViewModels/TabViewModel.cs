@@ -307,12 +307,13 @@ public partial class TabViewModel : ObservableObject
             {
                 if (existingByPath.TryGetValue(entry.FullPath, out var existing))
                 {
-                    entry.Icon = existing.Icon;
-                    if (existing.Modified == entry.Modified && existing.Size == entry.Size)
-                    {
-                        entry.TileIcon = existing.TileIcon;
-                        entry.Thumbnail = existing.Thumbnail;
-                    }
+                    TransferVisuals(
+                        existing,
+                        entry,
+                        forceRefresh => _shellService.GetListIcon(
+                            entry.FullPath,
+                            entry.IsDirectory,
+                            forceRefresh));
                 }
                 else
                 {
@@ -721,19 +722,37 @@ public partial class TabViewModel : ObservableObject
             return;
         }
 
-        updated.Icon = existing.Icon ?? _shellService.GetListIcon(updated.FullPath, updated.IsDirectory);
-        if (existing.Modified == updated.Modified && existing.Size == updated.Size)
-        {
-            updated.Thumbnail = existing.Thumbnail;
-            updated.TileIcon = existing.TileIcon;
-        }
-        else
-        {
-            updated.Thumbnail = null;
-            updated.TileIcon = null;
-        }
+        TransferVisuals(
+            existing,
+            updated,
+            forceRefresh => _shellService.GetListIcon(
+                updated.FullPath,
+                updated.IsDirectory,
+                forceRefresh));
 
         Items[index] = updated;
+    }
+
+    internal static void TransferVisuals(
+        FileSystemEntry existing,
+        FileSystemEntry updated,
+        Func<bool, System.Windows.Media.ImageSource?> loadIcon)
+    {
+        var metadataUnchanged =
+            existing.Modified == updated.Modified &&
+            existing.Size == updated.Size;
+
+        if (!metadataUnchanged)
+        {
+            updated.Icon = loadIcon(true);
+            updated.TileIcon = null;
+            updated.Thumbnail = null;
+            return;
+        }
+
+        updated.Icon = existing.Icon ?? loadIcon(false);
+        updated.TileIcon = existing.TileIcon;
+        updated.Thumbnail = existing.Thumbnail;
     }
 
     private void ReorderEntries()

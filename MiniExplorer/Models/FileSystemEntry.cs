@@ -99,19 +99,6 @@ public sealed class FileSystemEntry : INotifyPropertyChanged
 
     public string ModifiedDisplay => Modified?.ToString("g") ?? string.Empty;
 
-    public FileSystemEntry ClonePreservingVisuals() => new()
-    {
-        FullPath = FullPath,
-        Name = Name,
-        IsDirectory = IsDirectory,
-        Size = Size,
-        Modified = Modified,
-        Extension = Extension,
-        Icon = Icon,
-        TileIcon = TileIcon,
-        Thumbnail = Thumbnail
-    };
-
     private static string FormatSize(long bytes)
     {
         string[] units = ["B", "KB", "MB", "GB", "TB"];

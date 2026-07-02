@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -15,7 +14,9 @@ namespace MiniExplorer.Services;
 
 public sealed class ShellService
 {
-    private readonly ConcurrentDictionary<string, ImageSource> _listIconCache = new(StringComparer.OrdinalIgnoreCase);
+    private const int ListIconCacheCapacity = 512;
+    private readonly BoundedLruCache<string, ImageSource> _listIconCache =
+        new(ListIconCacheCapacity, StringComparer.OrdinalIgnoreCase);
 
     private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -47,9 +48,14 @@ public sealed class ShellService
 
     public ImageSource GetIcon(string path, bool isDirectory) => GetListIcon(path, isDirectory) ?? CreateFallbackIcon(16);
 
-    public ImageSource? GetListIcon(string path, bool isDirectory)
+    public ImageSource? GetListIcon(string path, bool isDirectory, bool forceRefresh = false)
     {
         var cacheKey = BuildListIconCacheKey(path, isDirectory);
+        if (forceRefresh)
+        {
+            _listIconCache.Remove(cacheKey);
+        }
+
         return _listIconCache.GetOrAdd(cacheKey, _ => LoadListIcon(path, isDirectory, cacheKey));
     }
 
