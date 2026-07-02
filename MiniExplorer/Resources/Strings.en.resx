@@ -168,4 +168,13 @@
   <data name="FileType_Folder" xml:space="preserve"><value>File folder</value></data>
   <data name="FileType_File" xml:space="preserve"><value>File</value></data>
   <data name="FileType_Extension" xml:space="preserve"><value>{0} file</value></data>
+  <data name="Operations_NavDashboard" xml:space="preserve"><value>Candela operations</value></data>
+  <data name="Operations_NavExplorer" xml:space="preserve"><value>File explorer</value></data>
+  <data name="Operations_Title" xml:space="preserve"><value>Candela operations dashboard</value></data>
+  <data name="Operations_Subtitle" xml:space="preserve"><value>Independent control surface for fleet health, active alerts, and local operational activity.</value></data>
+  <data name="Operations_ActiveAlerts" xml:space="preserve"><value>Active alerts</value></data>
+  <data name="Operations_RecentActivity" xml:space="preserve"><value>Recent operational activity</value></data>
+  <data name="Operations_QuickLinks" xml:space="preserve"><value>Quick links</value></data>
+  <data name="Operations_OpenExplorerWorkspace" xml:space="preserve"><value>Return to file explorer workspace</value></data>
+  <data name="Operations_StatusDashboard" xml:space="preserve"><value>Candela operations dashboard ready.</value></data>
 </root>

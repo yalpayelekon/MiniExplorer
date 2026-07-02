@@ -82,6 +82,15 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <Style x:Key="DashboardCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource Brush.Surface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Brush.Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Margin" Value="0,0,12,12"/>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -104,6 +113,17 @@
                         Margin="8,0,0,6"
                         Command="{Binding NewTabCommand}"
                         ToolTip="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_NewTab}"/>
+                <StackPanel DockPanel.Dock="Left"
+                            Orientation="Horizontal"
+                            Margin="0,0,12,6">
+                    <Button Content="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_NavDashboard}"
+                            Command="{Binding ShowOperationsDashboardCommand}"
+                            Padding="12,6"
+                            Margin="0,0,6,0"/>
+                    <Button Content="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_NavExplorer}"
+                            Command="{Binding ShowFileExplorerCommand}"
+                            Padding="12,6"/>
+                </StackPanel>
                 <ScrollViewer HorizontalScrollBarVisibility="Auto"
                               VerticalScrollBarVisibility="Disabled"
                               Margin="0,0,0,0">
@@ -208,7 +228,8 @@
                 Background="{DynamicResource Brush.HeaderSurface}"
                 BorderBrush="{DynamicResource Brush.HeaderBorder}"
                 BorderThickness="0,0,0,1"
-                Padding="{Binding ToolbarPadding}">
+                Padding="{Binding ToolbarPadding}"
+                Visibility="{Binding IsOperationsDashboardVisible, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
             <Grid DataContext="{Binding ActiveTab}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -342,7 +363,8 @@
                   Grid.Column="2"
                   DataContext="{Binding ActiveTab}"
                   Background="{DynamicResource Brush.Background}"
-                  PreviewMouseDown="FileListPanel_PreviewMouseDown">
+                  PreviewMouseDown="FileListPanel_PreviewMouseDown"
+                  Visibility="{Binding DataContext.IsOperationsDashboardVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}">
                 <ListView x:Name="FileList"
                           ItemsSource="{Binding Items}"
                           SelectionMode="Extended"
@@ -574,6 +596,101 @@
                            Foreground="{DynamicResource Brush.ForegroundMuted}"
                            Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}"/>
             </Grid>
+
+            <ScrollViewer Grid.Column="2"
+                          Background="{DynamicResource Brush.Background}"
+                          Visibility="{Binding IsOperationsDashboardVisible, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel DataContext="{Binding OperationsDashboard}"
+                            Margin="24">
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_Title}"
+                               FontSize="28"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource Brush.Foreground}"/>
+                    <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_Subtitle}"
+                               Foreground="{DynamicResource Brush.ForegroundMuted}"
+                               Margin="0,4,0,20"/>
+
+                    <ItemsControl ItemsSource="{Binding SummaryCards}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type models:OperationSummary}">
+                                <Border Style="{StaticResource DashboardCardStyle}" Width="220">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource Brush.ForegroundMuted}"/>
+                                        <TextBlock Text="{Binding Value}" FontSize="30" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}" Margin="0,6,0,2"/>
+                                        <TextBlock Text="{Binding Status}" Foreground="{DynamicResource Brush.Accent}"/>
+                                        <TextBlock Text="{Binding Detail}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.ForegroundMuted}" Margin="0,8,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="260"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0" Style="{StaticResource DashboardCardStyle}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_ActiveAlerts}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}" Margin="0,0,0,10"/>
+                                <ItemsControl ItemsSource="{Binding ActiveAlerts}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type models:ActiveOperationAlert}">
+                                            <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1" Padding="0,8">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding AssetName}" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}"/>
+                                                    <TextBlock Text="{Binding Severity}" Foreground="{DynamicResource Brush.Accent}"/>
+                                                    <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.ForegroundMuted}"/>
+                                                    <TextBlock Text="{Binding RaisedAt, StringFormat='{}{0:g}'}" FontSize="11" Foreground="{DynamicResource Brush.ForegroundMuted}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Style="{StaticResource DashboardCardStyle}">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_RecentActivity}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}" Margin="0,0,0,10"/>
+                                <ItemsControl ItemsSource="{Binding RecentEvents}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type models:OperationalEvent}">
+                                            <Border BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,0,0,1" Padding="0,8">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Area}" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}"/>
+                                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Foreground="{DynamicResource Brush.ForegroundMuted}"/>
+                                                    <TextBlock Text="{Binding OccurredAt, StringFormat='{}{0:g}'}" FontSize="11" Foreground="{DynamicResource Brush.ForegroundMuted}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Style="{StaticResource DashboardCardStyle}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_QuickLinks}" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource Brush.Foreground}" Margin="0,0,0,10"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Operations_OpenExplorerWorkspace}"
+                                        Command="{Binding DataContext.ShowFileExplorerCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        Padding="10"
+                                        Margin="0,0,0,8"/>
+                                <Button Content="{Binding Source={x:Static loc:LocalizationNotifier.Instance}, Path=Revision, Converter={StaticResource Loc}, ConverterParameter=Toolbar_NewTab}"
+                                        Command="{Binding DataContext.NewTabCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        Padding="10"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
         </Grid>
 
         <Border Grid.Row="3"

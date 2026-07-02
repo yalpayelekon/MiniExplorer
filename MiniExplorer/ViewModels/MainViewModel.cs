@@ -22,6 +22,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SessionService _sessionService = new();
     private readonly ThumbnailService _thumbnailService = new();
     private readonly SettingsService _settingsService = new();
+    private readonly OperationsOverviewService _operationsOverviewService = new();
     private CancellationTokenSource? _settingsSaveCts;
     private bool _suppressSortChange;
     private bool _suppressLanguageChange;
@@ -30,6 +31,7 @@ public partial class MainViewModel : ObservableObject
     {
         _fileSystemService = new FileSystemService(_directoryCacheService);
         Sidebar = new SidebarViewModel(_quickAccessService, _fileSystemService);
+        OperationsDashboard = new OperationsDashboardViewModel(_operationsOverviewService);
         Tabs = new ObservableCollection<TabViewModel>();
         LoadSettings();
 
@@ -40,6 +42,8 @@ public partial class MainViewModel : ObservableObject
     }
 
     public SidebarViewModel Sidebar { get; }
+
+    public OperationsDashboardViewModel OperationsDashboard { get; }
 
     public ObservableCollection<TabViewModel> Tabs { get; }
 
@@ -99,6 +103,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private ViewMode _viewMode = ViewMode.List;
+
+    [ObservableProperty]
+    private bool _isOperationsDashboardVisible;
 
     private bool _suppressViewModeChange;
     private TabViewModel? _subscribedTab;
@@ -243,6 +250,13 @@ public partial class MainViewModel : ObservableObject
         GlobalStatus = ActiveTab?.SelectionStatus ?? LocalizationService.Get("Common_Ready");
     }
 
+    partial void OnIsOperationsDashboardVisibleChanged(bool value)
+    {
+        GlobalStatus = value
+            ? LocalizationService.Get("Operations_StatusDashboard")
+            : ActiveTab?.SelectionStatus ?? LocalizationService.Get("Common_Ready");
+    }
+
     partial void OnHeaderStyleChanged(HeaderStylePreset value)
     {
         ApplyHeaderStyle(GetThemePalette(Theme));
@@ -360,6 +374,7 @@ public partial class MainViewModel : ObservableObject
     {
         if (sender is TabViewModel tab &&
             ReferenceEquals(ActiveTab, tab) &&
+            !IsOperationsDashboardVisible &&
             (e.PropertyName == nameof(TabViewModel.StatusMessage) ||
              e.PropertyName == nameof(TabViewModel.SelectionStatus)))
         {
@@ -368,8 +383,24 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NewTab(string? path = null) => AddTab(
-        path ?? ActiveTab?.CurrentPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    private void NewTab(string? path = null)
+    {
+        IsOperationsDashboardVisible = false;
+        AddTab(path ?? ActiveTab?.CurrentPath ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    }
+
+    [RelayCommand]
+    private void ShowOperationsDashboard()
+    {
+        OperationsDashboard.Refresh();
+        IsOperationsDashboardVisible = true;
+    }
+
+    [RelayCommand]
+    private void ShowFileExplorer()
+    {
+        IsOperationsDashboardVisible = false;
+    }
 
     private void AddTab(string tabPath, bool activate = true)
     {
@@ -728,6 +759,7 @@ public partial class MainViewModel : ObservableObject
         }
 
         await ActiveTab.NavigateToAsync(item.Path);
+        IsOperationsDashboardVisible = false;
         UpdateActiveTabStatus(saveSession: true);
     }
 
