@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using MiniExplorer.Helpers;
+using MiniExplorer.Localization;
 using MiniExplorer.Models;
 
 namespace MiniExplorer.Services;
@@ -117,7 +118,7 @@ public sealed class ShellService
     {
         if (!Directory.Exists(directoryPath))
         {
-            throw new InvalidOperationException("Klasör bulunamadı.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_FolderNotFound"));
         }
 
         var escapedPath = directoryPath.Replace("'", "''");
@@ -157,7 +158,7 @@ public sealed class ShellService
             }
         }
 
-        throw new InvalidOperationException("Terminal uygulaması bulunamadı.");
+        throw new InvalidOperationException(LocalizationService.Get("Error_TerminalNotFound"));
     }
 
     public void OpenInExplorer(string path)
@@ -183,7 +184,7 @@ public sealed class ShellService
             return;
         }
 
-        throw new InvalidOperationException("Konum bulunamadı.");
+        throw new InvalidOperationException(LocalizationService.Get("Error_LocationNotFound"));
     }
 
     public void OpenWithCode(string path)
@@ -220,7 +221,7 @@ public sealed class ShellService
             }
         }
 
-        throw new InvalidOperationException("VS Code veya Cursor bulunamadı.");
+        throw new InvalidOperationException(LocalizationService.Get("Error_VSCodeNotFound"));
     }
 
     public void OpenWithNotepadPlusPlus(string path)
@@ -257,7 +258,7 @@ public sealed class ShellService
             }
         }
 
-        throw new InvalidOperationException("Notepad++ bulunamadı.");
+        throw new InvalidOperationException(LocalizationService.Get("Error_NotepadNotFound"));
     }
 
     public void RunAsAdmin(string path)

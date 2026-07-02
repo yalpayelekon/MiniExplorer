@@ -85,13 +85,13 @@ public sealed class DirectoryCacheService
         {
             if (!_cache.TryGetValue(key, out var cached))
             {
-                Interlocked.Increment(ref _misses);
+                _misses++;
                 return false;
             }
 
             Touch(key);
             entries = cached.Entries;
-            Interlocked.Increment(ref _hits);
+            _hits++;
             return true;
         }
     }

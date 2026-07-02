@@ -168,4 +168,18 @@
   <data name="FileType_Folder" xml:space="preserve"><value>Dosya klasörü</value></data>
   <data name="FileType_File" xml:space="preserve"><value>Dosya</value></data>
   <data name="FileType_Extension" xml:space="preserve"><value>{0} dosyası</value></data>
+  <data name="Error_LocalDisk" xml:space="preserve"><value>Yerel Disk ({0})</value></data>
+  <data name="Error_InvalidPath" xml:space="preserve"><value>Geçersiz yol.</value></data>
+  <data name="Error_InvalidDestination" xml:space="preserve"><value>Geçersiz hedef yol.</value></data>
+  <data name="Error_CannotMoveIntoSelf" xml:space="preserve"><value>Klasör kendi içine veya alt klasörüne taşınamaz.</value></data>
+  <data name="Error_InvalidName" xml:space="preserve"><value>Geçersiz ad.</value></data>
+  <data name="Error_NameReserved" xml:space="preserve"><value>Bu ad kullanılamaz.</value></data>
+  <data name="Error_NameContainsPath" xml:space="preserve"><value>Ad yol içeremez.</value></data>
+  <data name="Error_InvalidCharacters" xml:space="preserve"><value>Ad geçersiz karakter içeriyor.</value></data>
+  <data name="Error_CannotCopyIntoSelf" xml:space="preserve"><value>Klasör kendi içine veya alt klasörüne kopyalanamaz.</value></data>
+  <data name="Error_FolderNotFound" xml:space="preserve"><value>Klasör bulunamadı.</value></data>
+  <data name="Error_TerminalNotFound" xml:space="preserve"><value>Terminal uygulaması bulunamadı.</value></data>
+  <data name="Error_LocationNotFound" xml:space="preserve"><value>Konum bulunamadı.</value></data>
+  <data name="Error_VSCodeNotFound" xml:space="preserve"><value>VS Code veya Cursor bulunamadı.</value></data>
+  <data name="Error_NotepadNotFound" xml:space="preserve"><value>Notepad++ bulunamadı.</value></data>
 </root>

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using MiniExplorer.Helpers;
+using MiniExplorer.Localization;
 using MiniExplorer.Models;
 using VB = Microsoft.VisualBasic.FileIO;
 
@@ -23,7 +24,7 @@ public sealed class FileSystemService
             {
                 FullPath = d.RootDirectory.FullName,
                 Name = string.IsNullOrWhiteSpace(d.VolumeLabel)
-                    ? $"Yerel Disk ({d.Name.TrimEnd('\\')})"
+                    ? LocalizationService.Get("Error_LocalDisk", d.Name.TrimEnd('\\'))
                     : $"{d.VolumeLabel} ({d.Name.TrimEnd('\\')})",
                 IsDirectory = true,
                 Modified = null,
@@ -210,14 +211,12 @@ public sealed class FileSystemService
         ValidateItemName(trimmedName);
 
         var parent = Path.GetDirectoryName(path)
-            ?? throw new InvalidOperationException("Geçersiz yol.");
+            ?? throw new InvalidOperationException(LocalizationService.Get("Error_InvalidPath"));
         var destination = Path.GetFullPath(Path.Combine(parent, trimmedName));
-        var normalizedParent = Path.GetFullPath(parent.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
 
-        if (!destination.StartsWith(normalizedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(destination, normalizedParent, StringComparison.OrdinalIgnoreCase))
+        if (!FilePathHelper.IsDirectChildPath(parent, destination))
         {
-            throw new InvalidOperationException("Geçersiz hedef yol.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_InvalidDestination"));
         }
 
         if (Directory.Exists(path))
@@ -234,7 +233,7 @@ public sealed class FileSystemService
         foreach (var sourcePath in sourcePaths)
         {
             var name = Path.GetFileName(sourcePath)
-                ?? throw new InvalidOperationException("Geçersiz kaynak yolu.");
+                ?? throw new InvalidOperationException(LocalizationService.Get("Error_InvalidPath"));
             var normalizedSourcePath = Path.GetFullPath(sourcePath);
             var directDestinationPath = Path.GetFullPath(Path.Combine(destinationDirectory, name));
 
@@ -250,7 +249,7 @@ public sealed class FileSystemService
             {
                 if (IsInsideDirectory(normalizedDestinationPath, normalizedSourcePath))
                 {
-                    throw new InvalidOperationException("Klasör kendi içine veya alt klasörüne taşınamaz.");
+                    throw new InvalidOperationException(LocalizationService.Get("Error_CannotMoveIntoSelf"));
                 }
 
                 CopyDirectory(sourcePath, destinationPath);
@@ -343,38 +342,30 @@ public sealed class FileSystemService
     {
         if (string.IsNullOrWhiteSpace(newName))
         {
-            throw new InvalidOperationException("Geçersiz ad.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_InvalidName"));
         }
 
         var trimmed = newName.Trim();
         if (trimmed is "." or "..")
         {
-            throw new InvalidOperationException("Bu ad kullanılamaz.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_NameReserved"));
         }
 
         if (Path.IsPathRooted(trimmed) ||
             trimmed.Contains(Path.DirectorySeparatorChar) ||
             trimmed.Contains(Path.AltDirectorySeparatorChar))
         {
-            throw new InvalidOperationException("Ad yol içeremez.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_NameContainsPath"));
         }
 
         if (trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
         {
-            throw new InvalidOperationException("Ad geçersiz karakter içeriyor.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_InvalidCharacters"));
         }
     }
 
-    private static bool IsInsideDirectory(string candidatePath, string directoryPath)
-    {
-        if (!directoryPath.EndsWith(Path.DirectorySeparatorChar))
-        {
-            directoryPath += Path.DirectorySeparatorChar;
-        }
-
-        return candidatePath.StartsWith(directoryPath, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(candidatePath.TrimEnd(Path.DirectorySeparatorChar), directoryPath.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsInsideDirectory(string candidatePath, string directoryPath) =>
+        FilePathHelper.IsInsideDirectory(candidatePath, directoryPath);
 
     private static void CopyDirectory(string sourceDir, string destinationDir)
     {
@@ -384,7 +375,7 @@ public sealed class FileSystemService
         if (string.Equals(normalizedSource, normalizedDestination, StringComparison.OrdinalIgnoreCase) ||
             IsInsideDirectory(normalizedDestination, normalizedSource))
         {
-            throw new InvalidOperationException("Klasör kendi içine veya alt klasörüne kopyalanamaz.");
+            throw new InvalidOperationException(LocalizationService.Get("Error_CannotCopyIntoSelf"));
         }
 
         Directory.CreateDirectory(destinationDir);

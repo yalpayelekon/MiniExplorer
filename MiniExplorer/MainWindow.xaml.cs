@@ -52,6 +52,7 @@ public partial class MainWindow : Window
         };
         SetupFileListDragDrop();
         Loaded += (_, _) => DpiHelper.RefreshScaleIfOnUiThread();
+        Activated += (_, _) => ViewModel.SyncClipboardFromSystem();
     }
 
     private void InitializeViewModeComboBoxes()
@@ -663,7 +664,7 @@ public partial class MainWindow : Window
 
         if (single is not null && !single.IsDirectory)
         {
-            if (CanRunAsAdmin(single.FullPath))
+            if (ViewModel.ShellService.CanRunAsAdmin(single.FullPath))
             {
                 menu.Items.Add(CreateMenuItem(LocalizationService.Get("Menu_RunAsAdmin"), () => ViewModel.RunAsAdminCommand.Execute(single)));
             }
@@ -715,15 +716,6 @@ public partial class MainWindow : Window
         };
         item.Click += (_, _) => action();
         return item;
-    }
-
-    private static bool CanRunAsAdmin(string path)
-    {
-        var extension = Path.GetExtension(path);
-        return extension.Equals(".exe", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".bat", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".msi", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsInteractiveChrome(DependencyObject source)

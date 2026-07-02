@@ -168,4 +168,18 @@
   <data name="FileType_Folder" xml:space="preserve"><value>File folder</value></data>
   <data name="FileType_File" xml:space="preserve"><value>File</value></data>
   <data name="FileType_Extension" xml:space="preserve"><value>{0} file</value></data>
+  <data name="Error_LocalDisk" xml:space="preserve"><value>Local Disk ({0})</value></data>
+  <data name="Error_InvalidPath" xml:space="preserve"><value>Invalid path.</value></data>
+  <data name="Error_InvalidDestination" xml:space="preserve"><value>Invalid destination path.</value></data>
+  <data name="Error_CannotMoveIntoSelf" xml:space="preserve"><value>Folder cannot be moved into itself or its subfolder.</value></data>
+  <data name="Error_InvalidName" xml:space="preserve"><value>Invalid name.</value></data>
+  <data name="Error_NameReserved" xml:space="preserve"><value>This name cannot be used.</value></data>
+  <data name="Error_NameContainsPath" xml:space="preserve"><value>Name cannot contain path.</value></data>
+  <data name="Error_InvalidCharacters" xml:space="preserve"><value>Name contains invalid characters.</value></data>
+  <data name="Error_CannotCopyIntoSelf" xml:space="preserve"><value>Folder cannot be copied into itself or its subfolder.</value></data>
+  <data name="Error_FolderNotFound" xml:space="preserve"><value>Folder not found.</value></data>
+  <data name="Error_TerminalNotFound" xml:space="preserve"><value>Terminal application not found.</value></data>
+  <data name="Error_LocationNotFound" xml:space="preserve"><value>Location not found.</value></data>
+  <data name="Error_VSCodeNotFound" xml:space="preserve"><value>VS Code or Cursor not found.</value></data>
+  <data name="Error_NotepadNotFound" xml:space="preserve"><value>Notepad++ not found.</value></data>
 </root>

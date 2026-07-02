@@ -26,6 +26,10 @@ public partial class MainViewModel : ObservableObject
     private bool _suppressSortChange;
     private bool _suppressLanguageChange;
 
+    public ShellService ShellService => _shellService;
+
+    public void SyncClipboardFromSystem() => _clipboardService.SyncFromSystemClipboard();
+
     public MainViewModel()
     {
         _fileSystemService = new FileSystemService(_directoryCacheService);
@@ -929,7 +933,13 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task PasteAsync(string? destinationDirectory = null)
     {
-        if (ActiveTab is null || !_clipboardService.HasContent)
+        if (ActiveTab is null)
+        {
+            return;
+        }
+
+        _clipboardService.SyncFromSystemClipboard();
+        if (!_clipboardService.HasContent)
         {
             return;
         }

@@ -7,6 +7,7 @@ namespace MiniExplorer.Services;
 
 public sealed class SessionService
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
     private readonly string _storagePath;
 
     public SessionService()
@@ -18,29 +19,10 @@ public sealed class SessionService
         _storagePath = Path.Combine(directory, "session.json");
     }
 
-    public TabSession? Load()
-    {
-        if (!File.Exists(_storagePath))
-        {
-            return null;
-        }
+    public TabSession? Load() => JsonFileHelper.Read<TabSession>(_storagePath);
 
-        try
-        {
-            var json = File.ReadAllText(_storagePath);
-            return JsonSerializer.Deserialize<TabSession>(json);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    public void Save(TabSession session)
-    {
-        var json = JsonSerializer.Serialize(session, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_storagePath, json);
-    }
+    public void Save(TabSession session) =>
+        JsonFileHelper.Write(_storagePath, session, SerializerOptions);
 
     public static bool IsValidTabPath(string path)
     {

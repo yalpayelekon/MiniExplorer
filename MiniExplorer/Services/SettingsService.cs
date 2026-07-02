@@ -1,11 +1,13 @@
 using System.IO;
 using System.Text.Json;
+using MiniExplorer.Helpers;
 using MiniExplorer.Models;
 
 namespace MiniExplorer.Services;
 
 public sealed class SettingsService
 {
+    private static readonly JsonSerializerOptions SerializerOptions = new() { WriteIndented = true };
     private readonly string _storagePath;
 
     public SettingsService()
@@ -17,27 +19,9 @@ public sealed class SettingsService
         _storagePath = Path.Combine(directory, "settings.json");
     }
 
-    public AppSettings Load()
-    {
-        if (!File.Exists(_storagePath))
-        {
-            return new AppSettings();
-        }
+    public AppSettings Load() =>
+        JsonFileHelper.ReadOrDefault(_storagePath, static () => new AppSettings());
 
-        try
-        {
-            var json = File.ReadAllText(_storagePath);
-            return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-        }
-        catch
-        {
-            return new AppSettings();
-        }
-    }
-
-    public void Save(AppSettings settings)
-    {
-        var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(_storagePath, json);
-    }
+    public void Save(AppSettings settings) =>
+        JsonFileHelper.Write(_storagePath, settings, SerializerOptions);
 }

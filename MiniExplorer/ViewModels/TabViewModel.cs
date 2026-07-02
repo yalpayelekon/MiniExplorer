@@ -1,5 +1,6 @@
 using System.IO;
 using System.Collections.ObjectModel;
+using System.Threading;
 using System.Threading.Channels;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -25,6 +26,8 @@ public partial class TabViewModel : ObservableObject
     private CancellationTokenSource? _filterDebounceCts;
     private FileSystemWatcher? _watcher;
     private readonly object _watchLock = new();
+    private readonly object _loadLock = new();
+    private readonly object _watcherDisposalLock = new();
     private readonly SemaphoreSlim _iconLoadGate = new(1, 1);
     private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _watchingRequested;
@@ -280,7 +283,11 @@ public partial class TabViewModel : ObservableObject
         var loadCts = new CancellationTokenSource();
         _loadCts = loadCts;
         var token = loadCts.Token;
-        var loadGeneration = Interlocked.Increment(ref _loadGeneration);
+        int loadGeneration;
+        lock (_loadLock)
+        {
+            loadGeneration = ++_loadGeneration;
+        }
 
         try
         {
@@ -304,6 +311,11 @@ public partial class TabViewModel : ObservableObject
 
             if (requiredWatchGeneration is int generation &&
                 (!_watchingRequested || generation != _watchGeneration))
+            {
+                return;
+            }
+
+            if (!IsLoadCurrent(loadGeneration, token))
             {
                 return;
             }
@@ -404,8 +416,13 @@ public partial class TabViewModel : ObservableObject
             requiredWatchGeneration: generation);
     }
 
-    private bool IsLoadCurrent(int loadGeneration, CancellationToken token) =>
-        !token.IsCancellationRequested && loadGeneration == _loadGeneration;
+    private bool IsLoadCurrent(int loadGeneration, CancellationToken token)
+    {
+        lock (_loadLock)
+        {
+            return !token.IsCancellationRequested && loadGeneration == _loadGeneration;
+        }
+    }
 
     public void StartWatching()
     {
@@ -465,39 +482,42 @@ public partial class TabViewModel : ObservableObject
 
     private void RecreateWatcher()
     {
-        DisposeWatcher();
-
-        if (!_watchingRequested ||
-            CurrentPath == PathConstants.ThisPc ||
-            !Directory.Exists(CurrentPath))
-        {
-            return;
-        }
-
-        try
-        {
-            var watcher = new FileSystemWatcher(CurrentPath)
-            {
-                IncludeSubdirectories = false,
-                NotifyFilter = NotifyFilters.FileName |
-                               NotifyFilters.DirectoryName |
-                               NotifyFilters.LastWrite |
-                               NotifyFilters.Size,
-                Filter = "*",
-                EnableRaisingEvents = false
-            };
-
-            watcher.Created += Watcher_Changed;
-            watcher.Changed += Watcher_Changed;
-            watcher.Deleted += Watcher_Changed;
-            watcher.Renamed += Watcher_Renamed;
-            watcher.Error += Watcher_Error;
-            _watcher = watcher;
-            watcher.EnableRaisingEvents = true;
-        }
-        catch
+        lock (_watcherDisposalLock)
         {
             DisposeWatcher();
+
+            if (!_watchingRequested ||
+                CurrentPath == PathConstants.ThisPc ||
+                !Directory.Exists(CurrentPath))
+            {
+                return;
+            }
+
+            try
+            {
+                var watcher = new FileSystemWatcher(CurrentPath)
+                {
+                    IncludeSubdirectories = false,
+                    NotifyFilter = NotifyFilters.FileName |
+                                   NotifyFilters.DirectoryName |
+                                   NotifyFilters.LastWrite |
+                                   NotifyFilters.Size,
+                    Filter = "*",
+                    EnableRaisingEvents = false
+                };
+
+                watcher.Created += Watcher_Changed;
+                watcher.Changed += Watcher_Changed;
+                watcher.Deleted += Watcher_Changed;
+                watcher.Renamed += Watcher_Renamed;
+                watcher.Error += Watcher_Error;
+                _watcher = watcher;
+                watcher.EnableRaisingEvents = true;
+            }
+            catch
+            {
+                DisposeWatcher();
+            }
         }
     }
 
@@ -586,7 +606,7 @@ public partial class TabViewModel : ObservableObject
                     await LoadAsync(showLoading: false, restoreSelection: true);
                 }
 
-                if (_watcher is null)
+                if (_watcher is null && _watchingRequested)
                 {
                     RecreateWatcher();
                 }
@@ -604,19 +624,22 @@ public partial class TabViewModel : ObservableObject
 
     private void DisposeWatcher()
     {
-        var watcher = Interlocked.Exchange(ref _watcher, null);
-        if (watcher is null)
+        lock (_watcherDisposalLock)
         {
-            return;
-        }
+            var watcher = Interlocked.Exchange(ref _watcher, null);
+            if (watcher is null)
+            {
+                return;
+            }
 
-        watcher.EnableRaisingEvents = false;
-        watcher.Created -= Watcher_Changed;
-        watcher.Changed -= Watcher_Changed;
-        watcher.Deleted -= Watcher_Changed;
-        watcher.Renamed -= Watcher_Renamed;
-        watcher.Error -= Watcher_Error;
-        watcher.Dispose();
+            watcher.EnableRaisingEvents = false;
+            watcher.Created -= Watcher_Changed;
+            watcher.Changed -= Watcher_Changed;
+            watcher.Deleted -= Watcher_Changed;
+            watcher.Renamed -= Watcher_Renamed;
+            watcher.Error -= Watcher_Error;
+            watcher.Dispose();
+        }
     }
 
     private async Task RefreshChangedEntriesAsync(string[] changedPaths, CancellationToken token)
@@ -980,6 +1003,7 @@ public partial class TabViewModel : ObservableObject
         if (CurrentPath == PathConstants.ThisPc)
         {
             AddressText = ThisPcLabel;
+            _ = LoadAsync(showLoading: false, restoreSelection: true);
         }
 
         RecomputeStatusMessage();
