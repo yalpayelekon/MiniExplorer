@@ -4,6 +4,7 @@
         xmlns:models="clr-namespace:MiniExplorer.Models"
         xmlns:vm="clr-namespace:MiniExplorer.ViewModels"
         xmlns:loc="clr-namespace:MiniExplorer.Localization"
+        xmlns:vwp="clr-namespace:WpfToolkit.Controls;assembly=VirtualizingWrapPanel"
         Title="Mini Explorer"
         Icon="pack://application:,,,/Assets/app.ico"
         Height="720"
@@ -483,13 +484,13 @@
                               PreviewMouseDown="FileList_MouseDown"
                               SelectionChanged="FileList_SelectionChanged"
                               ContextMenuOpening="FileList_ContextMenuOpening"
-                              ScrollViewer.CanContentScroll="False"
+                              ScrollViewer.CanContentScroll="True"
                               ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                               VirtualizingPanel.IsVirtualizing="True"
                               VirtualizingPanel.VirtualizationMode="Recycling">
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
-                                <WrapPanel/>
+                                <vwp:VirtualizingWrapPanel SpacingMode="Uniform"/>
                             </ItemsPanelTemplate>
                         </ListView.ItemsPanel>
                         <ListView.ItemContainerStyle>

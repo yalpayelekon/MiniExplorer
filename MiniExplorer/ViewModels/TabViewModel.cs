@@ -13,6 +13,8 @@ public partial class TabViewModel : ObservableObject
 {
     private static string ThisPcLabel => LocalizationService.Get("Common_ThisPc");
     private static readonly TimeSpan WatchDebounceDelay = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan FilterDebounceDelay = TimeSpan.FromMilliseconds(200);
+    private const int TileIconWorkerCount = 3;
 
     private readonly FileSystemService _fileSystemService;
     private readonly ShellService _shellService;
@@ -20,6 +22,7 @@ public partial class TabViewModel : ObservableObject
     private readonly DirectoryCacheService _directoryCacheService;
     private CancellationTokenSource? _loadCts;
     private CancellationTokenSource? _watchDebounceCts;
+    private CancellationTokenSource? _filterDebounceCts;
     private FileSystemWatcher? _watcher;
     private readonly object _watchLock = new();
     private readonly SemaphoreSlim _iconLoadGate = new(1, 1);
@@ -253,7 +256,7 @@ public partial class TabViewModel : ObservableObject
         }
     }
 
-    partial void OnFilterTextChanged(string value) => _ = LoadAsync();
+    partial void OnFilterTextChanged(string value) => ScheduleFilterReload();
 
     public async Task LoadAsync(
         bool showLoading = true,
@@ -265,6 +268,7 @@ public partial class TabViewModel : ObservableObject
             ? SelectedItems.Select(item => item.FullPath).ToHashSet(StringComparer.OrdinalIgnoreCase)
             : null;
 
+        CancelScheduledFilterReload();
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         var loadCts = new CancellationTokenSource();
@@ -293,16 +297,22 @@ public partial class TabViewModel : ObservableObject
                 return;
             }
 
+            var existingByPath = Items.ToDictionary(
+                item => item.FullPath,
+                StringComparer.OrdinalIgnoreCase);
+
             Items.Clear();
 
             foreach (var entry in entries)
             {
-                var existing = FindExistingEntry(entry.FullPath);
-                if (existing is not null)
+                if (existingByPath.TryGetValue(entry.FullPath, out var existing))
                 {
                     entry.Icon = existing.Icon;
-                    entry.TileIcon = existing.TileIcon;
-                    entry.Thumbnail = existing.Thumbnail;
+                    if (existing.Modified == entry.Modified && existing.Size == entry.Size)
+                    {
+                        entry.TileIcon = existing.TileIcon;
+                        entry.Thumbnail = existing.Thumbnail;
+                    }
                 }
                 else
                 {
@@ -394,7 +404,36 @@ public partial class TabViewModel : ObservableObject
         _watchingRequested = false;
         _loadCts?.Cancel();
         CancelScheduledAutoRefresh();
+        CancelScheduledFilterReload();
         DisposeWatcher();
+    }
+
+    private void CancelScheduledFilterReload()
+    {
+        _filterDebounceCts?.Cancel();
+        _filterDebounceCts?.Dispose();
+        _filterDebounceCts = null;
+    }
+
+    private void ScheduleFilterReload()
+    {
+        CancelScheduledFilterReload();
+        _filterDebounceCts = new CancellationTokenSource();
+        var token = _filterDebounceCts.Token;
+        _ = DebounceFilterReloadAsync(token);
+    }
+
+    private async Task DebounceFilterReloadAsync(CancellationToken token)
+    {
+        try
+        {
+            await Task.Delay(FilterDebounceDelay, token);
+            await LoadAsync(showLoading: false, restoreSelection: true);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer filter change replaced this reload.
+        }
     }
 
     private void CancelScheduledAutoRefresh()
@@ -699,7 +738,7 @@ public partial class TabViewModel : ObservableObject
 
     private void ReorderEntries()
     {
-        var sorted = SortEntries(Items);
+        var sorted = FileSystemEntrySorter.SortToList(Items, SortField, SortAscending);
         if (Items.Select(item => item.FullPath).SequenceEqual(
                 sorted.Select(item => item.FullPath),
                 StringComparer.OrdinalIgnoreCase))
@@ -712,44 +751,6 @@ public partial class TabViewModel : ObservableObject
         {
             Items.Add(item);
         }
-    }
-
-    private IReadOnlyList<FileSystemEntry> SortEntries(IEnumerable<FileSystemEntry> entries)
-    {
-        var list = entries.ToList();
-        var directories = list.Where(e => e.IsDirectory);
-        var files = list.Where(e => !e.IsDirectory);
-        return SortField switch
-        {
-            SortField.Modified => SortAscending
-                ? directories.OrderBy(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderBy(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList()
-                : directories.OrderByDescending(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderByDescending(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList(),
-            SortField.Type => SortAscending
-                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderBy(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList()
-                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderByDescending(e => e.Extension, StringComparer.OrdinalIgnoreCase).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList(),
-            SortField.Size => SortAscending
-                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderBy(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList()
-                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderByDescending(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList(),
-            _ => SortAscending
-                ? directories.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList()
-                : directories.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                    .Concat(files.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase))
-                    .ToList()
-        };
     }
 
     private async Task LoadIconViewAssetsAsync(
@@ -767,22 +768,8 @@ public partial class TabViewModel : ObservableObject
                 .ToList();
 
             var thumbnailTask = LoadThumbnailsBoundedAsync(entries, token, prioritizePaths);
-
-            foreach (var entry in entries)
-            {
-                token.ThrowIfCancellationRequested();
-                if (PicturesPathHelper.IsImageFile(entry.FullPath))
-                {
-                    continue;
-                }
-
-                if (entry.TileIcon is null || prioritizePaths?.Contains(entry.FullPath) == true)
-                {
-                    await LoadSingleTileIconAsync(entry, token);
-                }
-            }
-
-            await thumbnailTask;
+            var tileIconTask = LoadTileIconsBoundedAsync(entries, token, prioritizePaths);
+            await Task.WhenAll(thumbnailTask, tileIconTask);
         }
         catch (OperationCanceledException)
         {
@@ -821,6 +808,49 @@ public partial class TabViewModel : ObservableObject
         catch
         {
             // Skip failed tile icons.
+        }
+    }
+
+    private async Task LoadTileIconsBoundedAsync(
+        IReadOnlyList<FileSystemEntry> orderedEntries,
+        CancellationToken token,
+        IReadOnlySet<string>? prioritizePaths = null)
+    {
+        var channel = Channel.CreateBounded<FileSystemEntry>(new BoundedChannelOptions(64)
+        {
+            FullMode = BoundedChannelFullMode.Wait,
+            SingleWriter = true,
+            SingleReader = false
+        });
+
+        var producer = Task.Run(async () =>
+        {
+            foreach (var entry in orderedEntries
+                .Where(entry => !PicturesPathHelper.IsImageFile(entry.FullPath))
+                .Where(entry => entry.TileIcon is null || prioritizePaths?.Contains(entry.FullPath) == true)
+                .OrderByDescending(entry => prioritizePaths?.Contains(entry.FullPath) == true))
+            {
+                await channel.Writer.WriteAsync(entry, token);
+            }
+
+            channel.Writer.TryComplete();
+        }, token);
+
+        var workers = Enumerable.Range(0, TileIconWorkerCount).Select(_ => Task.Run(async () =>
+        {
+            await foreach (var entry in channel.Reader.ReadAllAsync(token))
+            {
+                await LoadSingleTileIconAsync(entry, token);
+            }
+        }, token)).ToArray();
+
+        try
+        {
+            await Task.WhenAll(workers.Prepend(producer));
+        }
+        finally
+        {
+            channel.Writer.TryComplete();
         }
     }
 
@@ -953,6 +983,7 @@ public partial class TabViewModel : ObservableObject
     public void CancelPendingLoad()
     {
         StopWatching();
+        CancelScheduledFilterReload();
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _loadCts = null;

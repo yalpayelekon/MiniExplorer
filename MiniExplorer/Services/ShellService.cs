@@ -17,6 +17,11 @@ public sealed class ShellService
 {
     private readonly ConcurrentDictionary<string, ImageSource> _listIconCache = new(StringComparer.OrdinalIgnoreCase);
 
+    private static readonly HashSet<string> PerFileIconExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".dll", ".cpl", ".scr", ".lnk", ".ico", ".url"
+    };
+
     private static readonly string[] CodeCandidatePaths =
     [
         "code",
@@ -44,8 +49,45 @@ public sealed class ShellService
 
     public ImageSource? GetListIcon(string path, bool isDirectory)
     {
-        var cacheKey = $"list|{path}|{isDirectory}";
-        return _listIconCache.GetOrAdd(cacheKey, _ => LoadSmallIcon(path, isDirectory));
+        var cacheKey = BuildListIconCacheKey(path, isDirectory);
+        return _listIconCache.GetOrAdd(cacheKey, _ => LoadListIcon(path, isDirectory, cacheKey));
+    }
+
+    private static string BuildListIconCacheKey(string path, bool isDirectory)
+    {
+        if (isDirectory)
+        {
+            return $"list|directory|{path}";
+        }
+
+        var extension = Path.GetExtension(path);
+        if (PerFileIconExtensions.Contains(extension))
+        {
+            return $"list|path|{path}";
+        }
+
+        if (string.IsNullOrEmpty(extension))
+        {
+            return "list|file-no-ext";
+        }
+
+        return $"list|ext|{extension}";
+    }
+
+    private static ImageSource LoadListIcon(string path, bool isDirectory, string cacheKey)
+    {
+        if (cacheKey == "list|file-no-ext")
+        {
+            return LoadSmallIconByAttributes("dummy", NativeMethods.FILE_ATTRIBUTE_NORMAL);
+        }
+
+        if (cacheKey.StartsWith("list|ext|", StringComparison.Ordinal))
+        {
+            var extension = cacheKey["list|ext|".Length..];
+            return LoadSmallIconByAttributes($"dummy{extension}", NativeMethods.FILE_ATTRIBUTE_NORMAL);
+        }
+
+        return LoadSmallIcon(path, isDirectory);
     }
 
     public ImageSource GetTileIcon(string path, bool isDirectory, double logicalSize = 187)
@@ -375,15 +417,25 @@ public sealed class ShellService
 
     private static ImageSource LoadSmallIcon(string path, bool isDirectory)
     {
-        var info = new NativeMethods.SHFILEINFO();
         var attributes = GetFileAttributes(path, isDirectory);
+        return LoadSmallIconByAttributes(path, attributes, useFileAttributes: !PathExists(path));
+    }
+
+    private static ImageSource LoadSmallIconByAttributes(string path, uint attributes, bool useFileAttributes = true)
+    {
+        var info = new NativeMethods.SHFILEINFO();
+        var flags = NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_SMALLICON;
+        if (useFileAttributes)
+        {
+            flags |= NativeMethods.SHGFI_USEFILEATTRIBUTES;
+        }
 
         NativeMethods.SHGetFileInfo(
             path,
             attributes,
             ref info,
             (uint)Marshal.SizeOf<NativeMethods.SHFILEINFO>(),
-            GetShellFileInfoFlags(path, NativeMethods.SHGFI_ICON | NativeMethods.SHGFI_SMALLICON));
+            flags);
 
         if (info.hIcon == IntPtr.Zero)
         {

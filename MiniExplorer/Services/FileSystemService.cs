@@ -199,36 +199,9 @@ public sealed class FileSystemService
         SortField sortField,
         bool sortAscending)
     {
-        var directories = entries.Where(e => e.IsDirectory);
-        var files = entries.Where(e => !e.IsDirectory);
-
-        var sortedDirectories = SortEntries(directories, sortField, sortAscending);
-        var sortedFiles = SortEntries(files, sortField, sortAscending);
-        return sortedDirectories.Concat(sortedFiles).ToList();
-    }
-
-    private static IEnumerable<FileSystemEntry> SortEntries(
-        IEnumerable<FileSystemEntry> entries,
-        SortField sortField,
-        bool sortAscending)
-    {
-        return sortField switch
-        {
-            SortField.Modified => sortAscending
-                ? entries.OrderBy(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                : entries.OrderByDescending(e => e.Modified ?? DateTime.MinValue).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            SortField.Type => sortAscending
-                ? entries.OrderBy(e => e.IsDirectory ? string.Empty : e.Extension, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                : entries.OrderByDescending(e => e.IsDirectory ? string.Empty : e.Extension, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            SortField.Size => sortAscending
-                ? entries.OrderBy(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                : entries.OrderByDescending(e => e.Size ?? -1).ThenBy(e => e.Name, StringComparer.OrdinalIgnoreCase),
-            _ => sortAscending
-                ? entries.OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
-                : entries.OrderByDescending(e => e.Name, StringComparer.OrdinalIgnoreCase)
-        };
+        var list = entries as List<FileSystemEntry> ?? entries.ToList();
+        FileSystemEntrySorter.Sort(list, sortField, sortAscending);
+        return list;
     }
 
     public void Rename(string path, string newName)
