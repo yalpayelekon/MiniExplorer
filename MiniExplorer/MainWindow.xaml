@@ -545,17 +545,13 @@
                                                    MaxWidth="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
                                                    MaxHeight="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
                                                    SnapsToDevicePixels="True"
-                                                   Margin="4"
                                                    RenderOptions.BitmapScalingMode="HighQuality"
                                                    Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVisibility}, ConverterParameter=Invert}"/>
                                             <Image Source="{Binding Thumbnail}"
                                                    Stretch="Uniform"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
-                                                   MaxWidth="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                   MaxHeight="{Binding DataContext.TileIconDisplaySize, RelativeSource={RelativeSource AncestorType=Window}}"
                                                    SnapsToDevicePixels="True"
-                                                   Margin="4"
                                                    RenderOptions.BitmapScalingMode="HighQuality"
                                                    Visibility="{Binding HasThumbnail, Converter={StaticResource BoolToVisibility}}"/>
                                         </Grid>
