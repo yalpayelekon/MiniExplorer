@@ -23,11 +23,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = new MainViewModel();
         ViewModel.SelectionRestoreRequested += RestoreSelection;
+        ViewModel.ActiveTabScrollCaptureRequested += SaveScrollState;
+        ViewModel.ActiveTabRefreshed += ResetActiveTabScroll;
         ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(MainViewModel.ActiveTab))
             {
-                ClearFileSelection();
+                OnActiveTabChanged();
             }
 
             if (e.PropertyName == nameof(MainViewModel.SortField) ||
@@ -38,7 +40,7 @@ public partial class MainWindow : Window
 
             if (e.PropertyName == nameof(MainViewModel.ViewMode))
             {
-                SyncViewModeComboBoxes();
+                OnViewModeChanged();
             }
         };
         InitializeViewModeComboBoxes();
@@ -129,6 +131,102 @@ public partial class MainWindow : Window
 
     private ListView GetActiveFileList() =>
         ViewModel.ViewMode == ViewMode.Icons ? IconFileList : FileList;
+
+    private void OnActiveTabChanged()
+    {
+        ClearFileSelection();
+
+        if (ViewModel.ActiveTab is not null)
+        {
+            Dispatcher.BeginInvoke(
+                () => RestoreScrollState(ViewModel.ActiveTab!),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    private void OnViewModeChanged()
+    {
+        if (ViewModel.ActiveTab is not null)
+        {
+            SaveScrollState(ViewModel.ActiveTab);
+        }
+
+        SyncViewModeComboBoxes();
+
+        if (ViewModel.ActiveTab is not null)
+        {
+            Dispatcher.BeginInvoke(
+                () => RestoreScrollState(ViewModel.ActiveTab!),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+    }
+
+    private void SaveScrollState(TabViewModel tab)
+    {
+        if (GetScrollViewer(FileList) is ScrollViewer listScrollViewer)
+        {
+            tab.ListScrollVerticalOffset = listScrollViewer.VerticalOffset;
+            tab.ListScrollHorizontalOffset = listScrollViewer.HorizontalOffset;
+        }
+
+        if (GetScrollViewer(IconFileList) is ScrollViewer iconScrollViewer)
+        {
+            tab.IconScrollVerticalOffset = iconScrollViewer.VerticalOffset;
+            tab.IconScrollHorizontalOffset = iconScrollViewer.HorizontalOffset;
+        }
+    }
+
+    private void RestoreScrollState(TabViewModel tab)
+    {
+        ApplyScrollState(FileList, tab.ListScrollVerticalOffset, tab.ListScrollHorizontalOffset);
+        ApplyScrollState(IconFileList, tab.IconScrollVerticalOffset, tab.IconScrollHorizontalOffset);
+    }
+
+    private static void ApplyScrollState(ListView listView, double verticalOffset, double horizontalOffset)
+    {
+        if (GetScrollViewer(listView) is not ScrollViewer scrollViewer)
+        {
+            return;
+        }
+
+        scrollViewer.ScrollToVerticalOffset(Math.Min(verticalOffset, scrollViewer.ScrollableHeight));
+        scrollViewer.ScrollToHorizontalOffset(Math.Min(horizontalOffset, scrollViewer.ScrollableWidth));
+    }
+
+    private static ScrollViewer? GetScrollViewer(ListView listView)
+    {
+        if (listView.Template is null)
+        {
+            listView.ApplyTemplate();
+        }
+
+        return listView.Template?.FindName("PART_ScrollViewer", listView) as ScrollViewer;
+    }
+
+    private void ResetActiveTabScroll(TabViewModel tab)
+    {
+        tab.ListScrollVerticalOffset = 0;
+        tab.ListScrollHorizontalOffset = 0;
+        tab.IconScrollVerticalOffset = 0;
+        tab.IconScrollHorizontalOffset = 0;
+
+        if (!ReferenceEquals(ViewModel.ActiveTab, tab))
+        {
+            return;
+        }
+
+        ResetListScroll(FileList);
+        ResetListScroll(IconFileList);
+    }
+
+    private static void ResetListScroll(ListView listView)
+    {
+        if (GetScrollViewer(listView) is ScrollViewer scrollViewer)
+        {
+            scrollViewer.ScrollToVerticalOffset(0);
+            scrollViewer.ScrollToHorizontalOffset(0);
+        }
+    }
 
     private void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {

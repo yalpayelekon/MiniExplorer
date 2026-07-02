@@ -29,6 +29,7 @@ public partial class TabViewModel : ObservableObject
     private readonly HashSet<string> _changedPaths = new(StringComparer.OrdinalIgnoreCase);
     private bool _watchingRequested;
     private int _watchGeneration;
+    private int _loadGeneration;
     private int _loadedItemCount;
     private int _loadedImageCount;
 
@@ -79,6 +80,11 @@ public partial class TabViewModel : ObservableObject
     private bool _sortAscending = true;
 
     public ViewMode ViewMode { get; set; } = ViewMode.List;
+
+    public double ListScrollVerticalOffset { get; set; }
+    public double ListScrollHorizontalOffset { get; set; }
+    public double IconScrollVerticalOffset { get; set; }
+    public double IconScrollHorizontalOffset { get; set; }
 
     public ObservableCollection<FileSystemEntry> SelectedItems { get; } = [];
 
@@ -274,6 +280,7 @@ public partial class TabViewModel : ObservableObject
         var loadCts = new CancellationTokenSource();
         _loadCts = loadCts;
         var token = loadCts.Token;
+        var loadGeneration = Interlocked.Increment(ref _loadGeneration);
 
         try
         {
@@ -290,7 +297,11 @@ public partial class TabViewModel : ObservableObject
                 SortField,
                 SortAscending,
                 bypassDirectoryCache);
-            token.ThrowIfCancellationRequested();
+            if (!IsLoadCurrent(loadGeneration, token))
+            {
+                return;
+            }
+
             if (requiredWatchGeneration is int generation &&
                 (!_watchingRequested || generation != _watchGeneration))
             {
@@ -351,12 +362,17 @@ public partial class TabViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            if (!IsLoadCurrent(loadGeneration, token))
+            {
+                return;
+            }
+
             Items.Clear();
             StatusMessage = ex.Message;
         }
         finally
         {
-            if (ReferenceEquals(_loadCts, loadCts))
+            if (ReferenceEquals(_loadCts, loadCts) && IsLoadCurrent(loadGeneration, token))
             {
                 IsLoading = false;
                 RecomputeStatusMessage();
@@ -381,16 +397,15 @@ public partial class TabViewModel : ObservableObject
         var hadCachedListing = _directoryCacheService.Contains(CurrentPath);
         StartWatching();
         var generation = _watchGeneration;
-        await LoadAsync(showLoading: false, restoreSelection: true);
-        if (hadCachedListing && _watchingRequested && generation == _watchGeneration)
-        {
-            _ = LoadAsync(
-                showLoading: false,
-                restoreSelection: true,
-                bypassDirectoryCache: true,
-                requiredWatchGeneration: generation);
-        }
+        await LoadAsync(
+            showLoading: false,
+            restoreSelection: true,
+            bypassDirectoryCache: hadCachedListing,
+            requiredWatchGeneration: generation);
     }
+
+    private bool IsLoadCurrent(int loadGeneration, CancellationToken token) =>
+        !token.IsCancellationRequested && loadGeneration == _loadGeneration;
 
     public void StartWatching()
     {

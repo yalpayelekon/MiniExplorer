@@ -45,6 +45,10 @@ public partial class MainViewModel : ObservableObject
 
     public event Action<IReadOnlyList<string>>? SelectionRestoreRequested;
 
+    public event Action<TabViewModel>? ActiveTabScrollCaptureRequested;
+
+    public event Action<TabViewModel>? ActiveTabRefreshed;
+
     [ObservableProperty]
     private TabViewModel? _activeTab;
 
@@ -181,6 +185,14 @@ public partial class MainViewModel : ObservableObject
         HeaderDensityPreset.Spacious => 16,
         _ => 14
     };
+
+    partial void OnActiveTabChanging(TabViewModel? value)
+    {
+        if (ActiveTab is TabViewModel outgoing)
+        {
+            ActiveTabScrollCaptureRequested?.Invoke(outgoing);
+        }
+    }
 
     partial void OnActiveTabChanged(TabViewModel? value)
     {
@@ -758,13 +770,19 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (ActiveTab is null)
+        if (ActiveTab is not TabViewModel tab)
         {
             return;
         }
 
-        await ActiveTab.RefreshAsync();
-        GlobalStatus = ActiveTab.StatusMessage;
+        await tab.RefreshAsync();
+
+        if (ReferenceEquals(ActiveTab, tab))
+        {
+            GlobalStatus = tab.StatusMessage;
+        }
+
+        ActiveTabRefreshed?.Invoke(tab);
     }
 
     [RelayCommand]
